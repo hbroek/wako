@@ -1,0 +1,249 @@
+{{define "home"}}{{template "top" .}}<main class="doc"><h1>Spaces</h1>
+<ul class="spacelist">{{range .Spaces}}<li><a href="{{$.Base}}/{{.Slug}}/">{{.Title}}</a></li>{{else}}<li>No spaces yet.</li>{{end}}</ul>
+{{if .IsAdmin}}<p><a class="btn" href="{{.Base}}/_ui/new-space">New space</a></p>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "page"}}{{template "top" .}}{{template "crumbs" .}}
+{{if .Rev}}<div class="banner">You are looking at <strong>revision {{.Rev.Version}}</strong>, {{.Rev.Action}} by {{if .Rev.Author}}{{.Rev.Author}}{{else}}someone{{end}} on {{.Rev.At}}.{{if .Rev.Note}} <em>{{.Rev.Note}}</em>{{end}}{{if .Rev.Current}} This is the current text.{{end}}
+<a href="{{.Rev.PageURL}}">Current version</a> · <a href="{{.Rev.PageURL}}?history">History</a> · <a href="{{.Rev.ChangesURL}}">Changes</a>{{if and .CanWrite (not .Rev.Current)}} · <button type="button" data-restore="{{.Rev.Version}}" data-url="{{.Rev.PageURL}}">Restore this revision</button>{{end}}</div>
+{{else if .MDURL}}<div class="actions">
+{{if .CanEdit}}<a id="edit-link" class="btn" href="?edit" title="Edit (Ctrl+E)">{{if .CanWrite}}Edit{{else}}Suggest an edit{{end}}</a><a class="btn" href="?create">{{if .CanWrite}}New child page{{else}}Suggest a child page{{end}}</a>{{end}}
+<a class="btn" href="?history">History</a>
+{{if .CanWrite}}<button type="button" data-dialog="move">Rename / move</button><button type="button" class="danger" data-dialog="delete">Delete</button>{{end}}
+<a class="btn" href="{{.MDURL}}">Markdown</a>
+</div>{{else}}<div class="actions">
+{{if .CanEdit}}<a class="btn" href="?create">{{if .CanWrite}}New page{{else}}Suggest a page{{end}}</a>{{end}}
+<a class="btn" href="?changes">Recent changes</a>
+{{if .CanWrite}}<a class="btn" href="?broken">Broken links</a>{{end}}
+<a class="btn" href="{{.FeedURL}}" title="Subscribe with a feed reader">RSS</a>
+</div>{{end}}
+<main class="doc">
+{{if .MDURL}}{{.Body}}{{else}}<h1>{{.Title}}</h1>{{if not .Children}}<p>No pages yet.{{if .CanWrite}} Use “New page” above.{{end}}</p>{{end}}{{end}}
+{{if .Children}}<h2>Pages</h2><ul>{{range .Children}}<li><a href="{{.URL}}">{{.Title}}</a></li>{{end}}</ul>{{end}}
+</main>
+{{if and .MDURL (not .Rev)}}<section id="backlinks" class="backlinks" data-url="{{.Base}}/_api/spaces/{{.Space.Slug}}/pages/{{.Path}}/backlinks" hidden><h2>Linked from</h2><ul></ul></section>{{end}}
+{{if and .CanWrite .MDURL (not .Rev)}}
+<dialog id="move"><form method="dialog"><h3>Rename or move</h3>
+<label>New path <input type="text" id="move-to" value="{{.Path}}"></label>
+<p class="hint">Use another parent in the path to move the page, e.g. <code>docs/new-name</code>.</p>
+<menu><button value="cancel">Cancel</button><button class="primary" value="ok">Move</button></menu></form></dialog>
+<dialog id="delete" data-url="{{.PageURL}}" data-parent="{{.ParentURL}}" data-version="{{.Version}}"><form method="dialog"><h3>Delete /{{.Path}}?</h3>
+{{if .HasKids}}<label><input type="checkbox" id="del-rec"> Also delete all pages below it</label>{{end}}
+<menu><button value="cancel">Cancel</button><button class="primary danger" value="ok">Delete</button></menu></form></dialog>
+{{end}}
+{{template "bottom" .}}{{end}}
+
+{{define "history"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>History of <a href="{{.PageURL}}">{{.Space.Title}} / {{.Path}}</a></h1>
+<table class="history"><thead><tr><th>Revision</th><th>When</th><th>Who</th><th>What</th><th>Size</th><th></th></tr></thead><tbody>
+{{range .Revs}}<tr{{if .Current}} class="current"{{end}}>
+<td><a href="{{.ViewURL}}">{{.Version}}</a>{{if .Current}} <span class="hint">current</span>{{end}}</td>
+<td>{{.At}}</td><td>{{if .Author}}{{.Author}}{{else}}<span class="hint">—</span>{{end}}</td><td>{{.What}}</td><td>{{size64 .Size}}</td>
+<td class="acts"><a href="{{.ViewURL}}">View</a>{{if .Prev}} · <a href="{{.ChangesURL}}">Changes</a>{{end}}{{if and $.CanWrite (not .Current)}} · <button type="button" data-restore="{{.Version}}" data-url="{{$.PageURL}}">Restore</button>{{end}}</td></tr>
+{{end}}</tbody></table>
+<p class="hint">Saves by the same person in quick succession are kept as one revision. Restoring adds a new revision; nothing is deleted.</p>
+</main>{{template "bottom" .}}{{end}}
+
+{{define "diff"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>Changes in <a href="{{.PageURL}}">{{.Path}}</a></h1>
+<p>{{if .DiffAgainst}}Revision {{.DiffAgainst}} → revision {{.Rev.Version}}{{else}}The first revision (revision {{.Rev.Version}}){{end}}, {{.Rev.Action}} by {{if .Rev.Author}}{{.Rev.Author}}{{else}}someone{{end}} on {{.Rev.At}}.{{if .Rev.Note}} <em>{{.Rev.Note}}</em>{{end}}
+<a href="{{.HistoryURL}}">All revisions</a> · <a href="{{.PageURL}}?rev={{.Rev.Version}}">View this revision</a></p>
+{{.DiffHTML}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "changes"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>Recent changes <a class="btn" href="{{.FeedURL}}" title="Subscribe with a feed reader">RSS</a></h1>
+<table class="history"><thead><tr><th>When</th><th>Page</th><th>What</th></tr></thead><tbody>
+{{range .Changes}}<tr><td>{{.When}}</td><td><a href="{{.URL}}">{{.Title}}</a> <span class="hint">/{{.Path}}</span></td><td>{{.Summary}}{{if .Note}} <em>{{.Note}}</em>{{end}}</td></tr>
+{{else}}<tr><td colspan="3">Nothing has changed yet.</td></tr>{{end}}</tbody></table>
+</main>{{template "bottom" .}}{{end}}
+{{define "missing"}}{{template "top" .}}{{template "crumbs" .}}<main class="doc">
+<h1>Page not found</h1>
+<p>There is no page at <code>/{{.Path}}</code> in {{.Space.Title}}.</p>
+{{if .CanEdit}}<p><a class="btn" href="?new">{{if .CanWrite}}Create this page{{else}}Suggest this page{{end}}</a></p>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "editor"}}{{template "top" .}}{{template "crumbs" .}}
+<form id="f" class="editor" data-url="{{.PageURL}}" data-view="{{.PageURL}}" data-mode="{{.Mode}}" data-version="{{.Version}}" data-render="{{.Base}}/_api/spaces/{{.Space.Slug}}/render" data-page="{{if eq .Mode "edit"}}{{.Path}}{{end}}" data-library="{{.Base}}/{{.Space.Slug}}/_assets" data-diff="{{.Base}}/_api/spaces/{{.Space.Slug}}/diff">
+<div class="bar">
+<h1>{{if eq .Mode "edit"}}Edit {{.Title}}{{else if eq .Mode "new"}}New page /{{.Path}}{{else if .Path}}New page under /{{.Path}}{{else}}New page{{end}}</h1>
+{{if eq .Mode "create"}}<label>Slug <input type="text" name="slug" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*"></label>{{end}}
+<span class="grow"></span><span id="msg" role="status"></span>
+<button type="button" id="media-btn" title="Insert an image from the library, or upload one">Image…</button>
+<span class="tabs"><button type="button" data-pane="write">Write</button><button type="button" data-pane="preview">Preview</button></span>
+<button class="primary" title="Save (Ctrl+S)">Save</button> <a id="done" class="btn" href="{{.PageURL}}" title="Leave editor (Esc)">Done</a>
+</div>
+<section id="conflict" class="banner conflict" hidden>
+<h2>Someone saved this page while you were editing</h2>
+<p>Their version → your version. Nothing has been overwritten.</p>
+<div id="conflict-diff"></div>
+<p><button type="button" id="conflict-mine" class="primary">Save mine over theirs</button>
+<button type="button" id="conflict-theirs">Use theirs, discard my changes</button>
+<button type="button" id="conflict-keep">Keep editing</button></p>
+</section>
+<div class="panes"><textarea name="body" id="src" required>{{.Source}}</textarea><div id="preview" class="doc preview"></div></div>
+</form>
+<dialog id="media" class="media"><form method="dialog">
+<h3>Images</h3>
+<div class="media-bar"><input type="search" id="media-q" placeholder="Search the library…" autocomplete="off">
+<label class="btn">Upload<input type="file" id="pick" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden></label>
+<button value="cancel">Close</button></div>
+<div id="media-grid" class="grid"></div>
+<p class="hint">Choosing an image inserts <code>![alt](name)</code>. The page keeps a link to that image by name.</p>
+</form></dialog>
+{{template "bottom" .}}{{end}}
+
+{{define "library"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>Media library</h1>
+{{if .Usage}}<p class="hint">{{.Usage}}</p>{{end}}
+<form class="media-bar" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="Search names" autocomplete="off"><button>Search</button>
+{{if .CanWrite}}<label class="btn">Upload<input type="file" id="lib-upload" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden></label>{{end}}</form>
+<div class="grid" id="lib" data-url="{{.Base}}/{{.Space.Slug}}/_assets">
+{{range .Assets}}<figure class="tile" data-id="{{.ID}}"><a href="{{.URL}}"><img loading="lazy" decoding="async" src="{{.Thumb}}" alt="{{.Name}}"{{if .ThumbW}} width="{{.ThumbW}}" height="{{.ThumbH}}"{{end}}></a>
+<figcaption><code>{{.Name}}</code><span class="hint">{{if .Width}}{{.Width}}×{{.Height}} · {{end}}{{size .Size}} · used by {{.UsedBy}} page{{if ne .UsedBy 1}}s{{end}}</span>
+{{if $.CanWrite}}<span class="tile-actions"><button type="button" data-rename data-name="{{.Name}}" data-used="{{.UsedBy}}">Rename</button><button type="button" class="danger" data-del data-used="{{.UsedBy}}">Delete</button></span>{{end}}</figcaption></figure>
+{{else}}<p>No images{{if .Query}} match “{{.Query}}”{{end}}.</p>{{end}}</div>
+{{if .CanWrite}}<dialog id="rename"><form method="dialog"><h3>Rename image</h3>
+<label>Name <input type="text" id="rename-to" autocomplete="off" spellcheck="false"></label>
+<p class="hint" id="rename-note"></p>
+<menu><button value="cancel">Cancel</button><button class="primary" value="ok">Rename</button></menu></form></dialog>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "newspace"}}{{template "top" .}}<main class="form"><h1>New space</h1>
+<form id="space-new">
+<label>Title <input type="text" name="title" required></label>
+<label>Slug <input type="text" name="slug" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*"></label>
+<label><input type="checkbox" name="public" checked> Anyone may read (anonymous read-only access)</label>
+<button class="primary">Create space</button> <span id="msg" role="status"></span>
+</form></main>{{template "bottom" .}}{{end}}
+
+{{define "settings"}}{{template "top" .}}<main class="form"><h1>Space settings</h1>
+<form id="space-settings" data-slug="{{.Space.Slug}}">
+<label>Title <input type="text" name="title" value="{{.Space.Title}}" required></label>
+<label>Slug <input type="text" name="slug" value="{{.Space.Slug}}" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*"></label>
+<label><input type="checkbox" name="public" {{if .Space.PublicRead}}checked{{end}}> Anyone may read (anonymous read-only access)</label>
+{{if and .IsAdmin .AIAvailable}}<label><input type="checkbox" name="ai" {{if .Space.AIEnabled}}checked{{end}}> Allow the AI features here (“Ask the wiki”, page drafts). The text of pages in this space is sent to the configured AI service.</label>{{end}}
+<button class="primary">Save</button> <span id="msg" role="status"></span>
+</form>
+<h2>Export and import</h2>
+<p class="hint">An export is a zip of ordinary Markdown files laid out like the page tree, with each image next to the pages that use it, plus a small <code>wako.json</code> with the page order. Importing accepts that zip, or any folder of Markdown files zipped up.</p>
+<p><a class="btn" href="{{.Base}}/_api/spaces/{{.Space.Slug}}/export" download>Download this space (.zip)</a></p>
+<form id="import-form" class="inline" data-url="{{.Base}}/_api/spaces/{{.Space.Slug}}/import">
+<input type="file" name="file" accept=".zip,application/zip" required>
+<select name="conflict" title="What to do with pages that already exist"><option value="skip">skip pages that exist</option><option value="overwrite">overwrite pages that exist</option></select>
+<button>Import</button> <span id="msg3" role="status"></span></form>
+<pre id="import-report" class="hint" hidden></pre>
+<h2>Members</h2>
+<p class="hint">Server administrators can always do everything. Everyone else needs a role here to write; with “Anyone may read” on, everybody (signed in or not) can read.</p>
+<table class="plain"><tbody id="members" data-url="{{.Base}}/_api/spaces/{{.Space.Slug}}/members"></tbody></table>
+<form id="member-new" class="inline" data-url="{{.Base}}/_api/spaces/{{.Space.Slug}}/members">
+<input type="text" name="user" placeholder="user name" required autocomplete="off">
+<select name="role"><option>viewer</option><option>suggester</option><option selected>editor</option><option>admin</option></select><button>Add</button> <span id="msg2" role="status"></span></form>
+{{if .IsAdmin}}<div class="danger-zone"><h2>Delete space</h2>
+<p>Deletes every page in this space. This cannot be undone.</p>
+<form id="space-delete" data-slug="{{.Space.Slug}}"><label>Type <code>{{.Space.Slug}}</code> to confirm <input type="text" name="confirm" autocomplete="off"></label>
+<button class="danger">Delete space</button></form></div>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "search"}}{{template "top" .}}<main class="wide">
+<h1>Search</h1>
+<form class="media-bar" action="{{.Base}}/_ui/search" method="get"><input type="search" name="q" value="{{.Query}}" autofocus autocomplete="off" aria-label="Search">
+{{if .SearchSpace}}<label class="hint"><input type="checkbox" name="space" value="{{.SearchSpace}}" checked> only in {{.SearchSpace}}</label>{{end}}<button>Search</button></form>
+{{if .Query}}<ol class="results page">{{range .Hits}}<li><a href="{{.URL}}">{{.Title}}</a> <span class="hint">{{.SpaceTitle}} / {{.Path}}</span><p class="snippet">{{.Snippet}}</p></li>
+{{else}}<li>No pages match “{{.Query}}”.</li>{{end}}</ol>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "broken"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>Broken links</h1>
+{{if .Broken}}<table><thead><tr><th>Page</th><th>Link</th><th></th></tr></thead><tbody>
+{{range .Broken}}<tr><td><a href="{{.URL}}">{{.Title}}</a> <span class="hint">/{{.Path}}</span></td>
+<td><code>{{.Target}}</code></td>
+<td>{{if and $.CanWrite .CreateURL}}<a href="{{.CreateURL}}">Create page</a>{{end}}</td></tr>{{end}}
+</tbody></table>{{else}}<p>No broken links in {{.Space.Title}}.</p>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "login"}}{{template "top" .}}<main class="form"><h1>Sign in</h1>
+<form id="login" data-next="{{.Next}}">
+<label>Name <input type="text" name="name" autocomplete="username" required autofocus></label>
+<label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+<button class="primary">Sign in</button> <span id="msg" role="status"></span></form>
+<p class="hint">Without an account you can still read public spaces.</p>
+</main>{{template "bottom" .}}{{end}}
+
+{{define "account"}}{{template "top" .}}<main class="form"><h1>Account</h1>
+<p>Signed in as <strong>{{.User}}</strong>{{if .IsAdmin}} (administrator){{end}}.</p>
+<h2>Change password</h2>
+<form id="pw"><label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
+<label>New password <input type="password" name="next" autocomplete="new-password" minlength="8" required></label>
+<button class="primary">Change password</button> <span id="msg" role="status"></span></form>
+<h2>API tokens</h2>
+<p class="hint">A token lets a script or the <code>curl</code> examples act with your permissions: <code>Authorization: Bearer &lt;token&gt;</code>. It is shown once, so copy it now.</p>
+<ul id="tok-list" class="plain"></ul>
+<form id="tok-new" class="inline"><input type="text" name="name" placeholder="what is it for?" required maxlength="80"><label class="check" title="For AI assistants and scripts you want to supervise: their changes wait for an editor to accept them"><input type="checkbox" name="suggest"> can only suggest</label><button>Create token</button></form>
+<p id="tok-secret" hidden><strong>New token:</strong> <code></code></p>
+</main>{{template "bottom" .}}{{end}}
+
+{{define "users"}}{{template "top" .}}<main class="wide"><h1>Users</h1>
+<table id="users"><thead><tr><th>Name</th><th>Administrator</th><th></th></tr></thead><tbody></tbody></table>
+<h2>Add a user</h2>
+<form id="user-new" class="inline"><input type="text" name="name" placeholder="name" required autocomplete="off" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*">
+<input type="password" name="password" placeholder="password (8+ characters)" required minlength="8" autocomplete="new-password">
+<label><input type="checkbox" name="admin"> administrator</label><button class="primary">Add user</button> <span id="msg" role="status"></span></form>
+<p class="hint">Give a user access to a space from that space's Settings page.</p>
+<dialog id="pw-dialog"><form method="dialog"><h3>New password for <span id="pw-user"></span></h3>
+<label><input type="password" id="pw-new" minlength="8" autocomplete="new-password"></label>
+<menu><button value="cancel">Cancel</button><button class="primary" value="ok">Set password</button></menu></form></dialog>
+</main>{{template "bottom" .}}{{end}}
+
+{{define "proposals"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide">
+<h1>Suggestions</h1>
+<p class="tabs-line">{{range $s := list "pending" "accepted" "rejected" "all"}}<a class="btn{{if eq $.Query $s}} on{{end}}" href="?status={{$s}}">{{$s}}</a> {{end}}</p>
+<table class="history"><thead><tr><th>Page</th><th>From</th><th>When</th><th>Note</th><th>Status</th></tr></thead><tbody>
+{{range .Proposals}}<tr><td><a href="{{.URL}}">{{.Title}}</a> <span class="hint">/{{.Path}}{{if .New}} · new page{{end}}</span></td>
+<td>{{if .Author}}{{.Author}}{{else}}<span class="hint">—</span>{{end}}{{if .Source}} <span class="hint">{{.Source}}</span>{{end}}</td><td>{{.When}}</td><td>{{.Note}}</td><td>{{.Status}}</td></tr>
+{{else}}<tr><td colspan="5">Nothing here.</td></tr>{{end}}</tbody></table>
+<p class="hint">Suggestions come from people who may read but not edit this space, from API tokens made “suggest only”, and from AI drafts. Accepting one saves it as a normal edit and credits whoever suggested it.</p>
+</main>{{template "bottom" .}}{{end}}
+
+{{define "proposal"}}{{template "top" .}}{{template "crumbs" .}}<main class="wide" id="proposal" data-url="{{.Proposal.URL}}" data-back="{{.Base}}/{{.Space.Slug}}/_proposals">
+<h1>Suggestion for <a href="{{.Proposal.PageURL}}">/{{.Proposal.Path}}</a>{{if .Proposal.New}} <span class="hint">new page</span>{{end}}</h1>
+<p>From {{if .Proposal.Author}}<strong>{{.Proposal.Author}}</strong>{{else}}someone{{end}}{{if .Proposal.Source}} <span class="hint">({{.Proposal.Source}})</span>{{end}} on {{.Proposal.When}} · <strong>{{.Proposal.Status}}</strong>{{if .DecidedBy}} by {{.DecidedBy}} on {{.DecidedAt}}{{end}}.
+{{if .Proposal.Note}}<br><em>{{.Proposal.Note}}</em>{{end}}{{if .Decision}}<br>Decision: <em>{{.Decision}}</em>{{end}}</p>
+{{if .Stale}}<div class="banner conflict">The page has changed since this was suggested. Accepting tries to apply the same change to the current text, and refuses if it no longer fits.</div>{{end}}
+{{.DiffHTML}}
+{{if .CanReview}}
+<details><summary>Edit before accepting</summary><textarea id="p-body" rows="16" class="wide-text">{{.Source}}</textarea><p class="hint">If you change the text, your text replaces the page.</p></details>
+<p><label>Note <input type="text" id="p-note" maxlength="500" placeholder="optional, shown to the author"></label></p>
+<p><button id="p-accept" class="primary">Accept</button> <button id="p-reject" class="danger">Reject</button> <span id="msg" role="status"></span></p>
+{{end}}
+{{if .CanWithdraw}}<p><button id="p-withdraw">Withdraw this suggestion</button> <span id="msg" role="status"></span></p>{{end}}
+</main>{{template "bottom" .}}{{end}}
+
+{{define "ask"}}{{template "top" .}}<main class="wide" id="ask" data-api="{{.Base}}/_api/ai" data-space="{{.SearchSpace}}" data-path="{{.Path}}">
+<h1>Ask the wiki</h1>
+{{if not .AIOn}}<p>The AI features are not set up on this server{{if .AuthOn}}, or you need to <a href="{{.Base}}/_ui/login?next={{.Next | urlquery}}">sign in</a>{{end}}.</p>
+{{else}}
+<p class="tabs-line"><button type="button" class="btn on" data-tab="ask">Ask a question</button> <button type="button" class="btn" data-tab="draft">Draft a page</button> <span id="ask-model" class="hint"></span></p>
+<section id="tab-ask">
+<form id="ask-form"><label>In <select name="space" id="ask-space"></select></label>
+<textarea name="question" rows="3" maxlength="2000" required placeholder="What would you like to know? The answer comes only from pages you may read, with links to them."></textarea>
+<p><button class="primary">Ask</button> <span id="ask-msg" role="status"></span></p></form>
+<div id="ask-answer" class="doc answer" hidden></div>
+<div id="ask-sources" hidden><h2>Sources</h2><ol class="results"></ol></div>
+<p class="hint">Answers are written by an AI from the pages found for your question. Check the sources before relying on them.</p>
+</section>
+<section id="tab-draft" hidden>
+<form id="draft-form"><label>In <select name="space" id="draft-space"></select></label>
+<label>Page address <input type="text" name="path" id="draft-path" placeholder="optional, e.g. guides/new-hire" autocomplete="off"></label>
+<textarea name="instruction" rows="4" maxlength="4000" required placeholder="Describe the page. If the address is a page that exists, it is rewritten as you describe."></textarea>
+<p><button class="primary">Draft</button> <span id="draft-msg" role="status"></span></p></form>
+<div id="draft-result" hidden>
+<p class="banner">Nothing is saved yet. Read the draft, change what you like, then save it.<br><span class="hint" id="draft-note"></span></p>
+<textarea id="draft-body" rows="22" class="wide-text"></textarea>
+<div id="draft-sources" hidden><h2>It was based on</h2><ol class="results"></ol></div>
+<p><label>Save as <input type="text" id="draft-save-path" placeholder="page address, e.g. guides/new-hire"></label>
+<button type="button" id="draft-save" class="primary">Save page</button> <span id="draft-save-msg" role="status"></span></p>
+</div>
+</section>
+{{end}}
+</main>{{template "bottom" .}}{{end}}

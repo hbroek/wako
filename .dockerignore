@@ -1,0 +1,6 @@
+bin
+data
+.git
+**/testdata/fuzz
+*.db
+*.db-*

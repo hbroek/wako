@@ -1,0 +1,26 @@
+version: 2
+project_name: wako
+builds:
+  - id: wakod
+    main: ./cmd/wakod
+    binary: wakod
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X github.com/hbroek/wako/internal/version.Version={{.Version}} -X github.com/hbroek/wako/internal/version.Commit={{.ShortCommit}} -X github.com/hbroek/wako/internal/version.Date={{.CommitDate}}"]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore: [{ goos: windows, goarch: arm64 }]
+  - id: wako
+    main: ./cmd/wako
+    binary: wako
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X github.com/hbroek/wako/internal/version.Version={{.Version}} -X github.com/hbroek/wako/internal/version.Commit={{.ShortCommit}} -X github.com/hbroek/wako/internal/version.Date={{.CommitDate}}"]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore: [{ goos: windows, goarch: arm64 }]
+archives:
+  - formats: [tar.gz]
+    format_overrides: [{ goos: windows, formats: [zip] }]
+    files: [README.md]
+checksum: { name_template: SHA256SUMS }

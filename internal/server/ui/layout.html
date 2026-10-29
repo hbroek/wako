@@ -1,0 +1,44 @@
+{{define "top"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}{{if .Space}} · {{.Space.Title}}{{end}} · {{.SiteName}}</title>
+<script src="{{.Base}}/_ui/theme.js?v={{.AssetV}}"></script>
+<link rel="stylesheet" href="{{.Base}}/_ui/app.css?v={{.AssetV}}">
+{{if .HasLogo}}<link rel="icon" href="{{.Base}}/_ui/logo">{{else}}<link rel="icon" type="image/svg+xml" href="{{.Base}}/_ui/icon.svg?v={{.AssetV}}"><link rel="icon" type="image/png" sizes="180x180" href="{{.Base}}/_ui/apple-touch-icon.png?v={{.AssetV}}"><link rel="apple-touch-icon" href="{{.Base}}/_ui/apple-touch-icon.png?v={{.AssetV}}">{{end}}
+{{if .FeedURL}}<link rel="alternate" type="application/rss+xml" title="{{.FeedTitle}}" href="{{.FeedURL}}">{{end}}
+</head><body data-base="{{.Base}}" data-space="{{if .Space}}{{.Space.Slug}}{{end}}">
+<header class="top">
+{{if .Space}}<button id="navtoggle" type="button" aria-label="Toggle navigation" title="Navigation (Ctrl+Shift+E)">☰</button>{{end}}
+<a class="brand" href="{{.Base}}/"><img src="{{if .HasLogo}}{{.Base}}/_ui/logo{{else}}{{.Base}}/_ui/icon.svg?v={{.AssetV}}{{end}}" alt=""><span>{{.SiteName}}</span></a>
+{{if .Space}}<details class="spaces"><summary>{{.Space.Title}}</summary><ul>
+{{range .SpaceList}}<li><a href="{{$.Base}}/{{.Slug}}/">{{.Title}}</a></li>{{end}}
+{{if .IsAdmin}}<li><a href="{{.Base}}/_ui/new-space">+ New space</a></li>{{end}}
+</ul></details>{{end}}
+<form class="search" action="{{.Base}}/_ui/search" method="get" role="search">
+<input type="search" name="q" placeholder="Search (Ctrl+Shift+F)" aria-label="Search" autocomplete="off">{{if .Space}}<input type="hidden" name="space" value="{{.Space.Slug}}">{{end}}</form>
+<span class="grow"></span>
+{{if .AIOn}}<a class="btn" href="{{.Base}}/_ui/ask{{if .Space}}?space={{.Space.Slug}}{{end}}" title="Ask the wiki, or have a page drafted">Ask</a>{{end}}
+{{if .Space}}<a class="btn" href="{{.Base}}/{{.Space.Slug}}/_assets/" title="Media library">Media</a>{{end}}
+{{if and .Space .CanManage}}<a class="btn" href="{{.Base}}/{{.Space.Slug}}/?settings">Settings</a>{{end}}
+{{if .AuthOn}}{{if .User}}<a class="btn" href="{{.Base}}/_ui/account" title="Account">{{.User}}</a>{{if .IsAdmin}}<a class="btn" href="{{.Base}}/_ui/users">Users</a>{{end}}<button id="logout" type="button">Sign out</button>{{else}}<a class="btn" href="{{.Base}}/_ui/login?next={{.Next | urlquery}}">Sign in</a>{{end}}{{end}}
+<button id="theme" type="button" title="Toggle dark mode">◐</button>
+</header>
+<div class="shell">
+{{if .Space}}<aside id="nav" data-writable="{{.CanWrite}}"><div class="tree">{{if .Tree.Nodes}}{{template "tree" .Tree}}{{else}}<p class="hint">No pages yet.</p>{{end}}</div></aside>{{end}}
+<div class="content">
+{{end}}
+
+{{define "bottom"}}</div></div>
+<dialog id="search-pane" class="search-pane" data-api="{{.Base}}/_api/search" data-space="{{if .Space}}{{.Space.Slug}}{{end}}"><form method="dialog">
+<div class="media-bar"><input type="search" id="sp-q" placeholder="Search pages…" autocomplete="off" aria-label="Search pages">
+{{if .Space}}<label class="hint"><input type="checkbox" id="sp-all"> all spaces</label>{{end}}<button value="cancel">Close</button></div>
+<ol id="sp-results" class="results"></ol>
+<p class="hint">↑ ↓ to move, Enter to open, Esc to close. <a id="sp-more" href="{{.Base}}/_ui/search">Full results</a></p>
+</form></dialog>
+<script src="{{.Base}}/_ui/app.js?v={{.AssetV}}"></script></body></html>{{end}}
+
+{{define "tree"}}<ul>{{range .Nodes}}<li data-path="{{.Path}}" class="{{if isOpen .Path $.Cur}}open{{end}}{{if eq .Path $.Cur}} current{{end}}{{if .Children}} has-kids{{end}}"{{if $.CanWrite}} draggable="true"{{end}}>
+<div class="row"><button class="tog" type="button" aria-label="Expand"></button><a href="{{$.Base}}/{{$.Slug}}/{{.Path}}">{{.Title}}</a></div>
+{{if .Children}}{{template "tree" (sub $ .Children)}}{{end}}</li>{{end}}</ul>{{end}}
+
+{{define "crumbs"}}<nav class="crumbs">{{range $i, $c := .Crumbs}}{{if $i}} / {{end}}<a href="{{$c.URL}}">{{$c.Title}}</a>{{end}}{{if .Pending}} <a class="pending" href="{{.Base}}/{{.Space.Slug}}/_proposals" title="Suggestions waiting for review">{{.Pending}} to review</a>{{end}}</nav>{{end}}

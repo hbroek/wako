@@ -1,0 +1,32 @@
+[Unit]
+Description=wako wiki
+After=network.target
+
+[Service]
+User=wako
+Group=wako
+EnvironmentFile=-/etc/wako/wako.env
+ExecStart=/usr/local/bin/wakod
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=35
+StateDirectory=wako
+StateDirectoryMode=0700
+Environment=WAKO_DATA_DIR=/var/lib/wako
+# The wiki needs no privileges, devices or other users' files.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
