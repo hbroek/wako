@@ -121,6 +121,10 @@ WAKO_TRUSTED_PROXIES=127.0.0.1/32 WAKO_PUBLIC_URL=https://wiki.example.com ./wak
 
 Without that, `X-Forwarded-For`, `-Proto` and `-Host` are ignored (so a visitor cannot pretend to be someone else, and the login rate limit sees the real address). Examples for nginx and Caddy are in `deploy/`. Set the proxy's upload limit above `-max-upload-mb` and `-max-import-mb`.
 
+## Deploy with Coolify
+
+Step by step, for a private GitHub repository and the included `Dockerfile`: [`deploy/coolify.md`](deploy/coolify.md).
+
 ## Install as a service
 
 `deploy/wakod.service` is a hardened systemd unit (dedicated `wako` user, state in `/var/lib/wako`, settings in `/etc/wako/wako.env`, see `deploy/wako.env.example`).
