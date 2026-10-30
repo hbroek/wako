@@ -628,6 +628,65 @@
       else if (mod && e.altKey && /^Digit[123]$/.test(e.code)) { e.preventDefault(); heading(+e.code.slice(5)); }
       else if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { location.href = view; }
     });
+
+    // ---- the assistant under the editor ----
+    var asst = $('#assist');
+    if (asst) {
+      var aq = $('#assist-q'), amsg = $('#assist-msg'), ago = $('#assist-go'), aundo = $('#assist-undo'), trail = [], busy = false;
+      var note = function (t, bad) { amsg.textContent = t; amsg.className = bad ? 'err' : ''; };
+      var apiErr = function (r) { return r.text().then(function (t) { try { return JSON.parse(t).error || t; } catch (e) { return (t || r.statusText).trim(); } }); };
+      // Where the text goes, and what the text becomes. v is the editor's text when the request was sent.
+      var place = function (v, s, e, res) {
+        var t = res.text, from, to, out;
+        if (res.mode === 'replace') {
+          from = res.place === 'page' ? 0 : s; to = res.place === 'page' ? v.length : e;
+          return { text: v.slice(0, from) + t + v.slice(to), from: from, to: from + t.length };
+        }
+        var at = res.place === 'cursor' ? e : v.length, b = v.slice(0, at), a = v.slice(at), pre, post;
+        if (res.place === 'cursor' && b && a && !/\n$/.test(b) && !/^\n/.test(a) && t.indexOf('\n') < 0) { pre = post = ''; } // a few words inside a line
+        else {
+          pre = !b ? '' : /\n\n$/.test(b) ? '' : /\n$/.test(b) ? '\n' : '\n\n';
+          post = !a ? '\n' : /^\n\n/.test(a) ? '' : /^\n/.test(a) ? '\n' : '\n\n';
+        }
+        from = b.length + pre.length;
+        return { text: b + pre + t + post + a, from: from, to: from + t.length };
+      };
+      var show = function (text, from, to) {
+        src.value = text; src.blur(); src.setSelectionRange(from, to); src.focus(); // blur first: it makes the browser scroll to the selection
+        src.dispatchEvent(new Event('input'));
+      };
+      var undo = function () {
+        var h = trail.pop(); if (!h) return;
+        show(h.before, h.s, h.e); aundo.disabled = !trail.length; note('Undone.');
+      };
+      aundo.addEventListener('click', undo);
+      src.addEventListener('keydown', function (e) { // Ctrl+Z takes back the assistant's change while nothing was typed after it
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyZ' && trail.length && trail[trail.length - 1].after === src.value) { e.preventDefault(); undo(); }
+      });
+      aq.addEventListener('keydown', function (e) { // the editor's shortcuts act on the text, not on this box
+        if (e.key === 'Escape') { e.stopPropagation(); aq.blur(); src.focus(); }
+        else if (!((e.ctrlKey || e.metaKey) && e.code === 'KeyS')) e.stopPropagation();
+      });
+      document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'Slash') { e.preventDefault(); aq.focus(); }
+      });
+      asst.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var q = aq.value.trim(); if (!q || busy) return;
+        var v = src.value, s = src.selectionStart, e = src.selectionEnd; // a textarea keeps its selection while it is not focused
+        busy = true; ago.disabled = true; note('Working…');
+        json('POST', asst.dataset.api, { space: asst.dataset.space, instruction: q, before: v.slice(0, s), selected: v.slice(s, e), after: v.slice(e) }).then(function (r) {
+          if (!r.ok) return apiErr(r).then(function (t) { note(t, true); });
+          return r.json().then(function (res) {
+            if (src.value !== v) { note('The text changed while the assistant was working, so its answer was not used. Try again.', true); return; }
+            var p = place(v, s, e, res);
+            trail.push({ before: v, s: s, e: e, after: p.text }); if (trail.length > 20) trail.shift();
+            show(p.text, p.from, p.to); aundo.disabled = false; aq.value = '';
+            note((res.mode === 'replace' ? 'Changed' : 'Added') + ' by ' + res.model + (res.truncated ? ', but cut off at the length limit' : '') + '. Not saved yet; Undo takes it back.');
+          });
+        }, function () { note('Network error', true); }).then(function () { busy = false; ago.disabled = false; });
+      });
+    }
     src.focus();
   }
 

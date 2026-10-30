@@ -145,7 +145,7 @@ func (s *Server) revisionPage(w http.ResponseWriter, r *http.Request, sp *store.
 	}
 	switch rep {
 	case reprMD:
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=CommonMark")
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=GFM")
 		io.WriteString(w, rev.Body)
 	case reprJSON:
 		out := revJSON{rev.Version, rev.Title, rev.Author, rev.At.UTC().Format(time.RFC3339), rev.Action, rev.Note, rev.Size, false}

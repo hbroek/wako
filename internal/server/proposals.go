@@ -328,7 +328,7 @@ func (s *Server) showProposal(w http.ResponseWriter, r *http.Request, sp *store.
 		w.Header().Set("Content-Type", "text/x-diff; charset=utf-8")
 		fmt.Fprint(w, diff.Unified(p.BaseBody, p.Body, "a/"+p.Path, "b/"+p.Path))
 	case reprMD:
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=CommonMark")
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=GFM")
 		fmt.Fprint(w, p.Body)
 	default:
 		d := s.newData(r, sp, acc, "", "Suggestion for "+p.Path)

@@ -39,12 +39,15 @@ func unsafeHTML(out string) string {
 						bad = append(bad, key+"="+a.Val)
 					}
 				case key == "style":
+					if (n.Data == "th" || n.Data == "td") && (val == "text-align:left" || val == "text-align:right" || val == "text-align:center") {
+						break
+					}
 					if n.Data != "img" || !strings.HasPrefix(val, "--r:") || strings.ContainsAny(val, ";(){}<>\\/@") {
 						bad = append(bad, "style="+a.Val)
 					}
 				case key == "srcdoc" || key == "formmethod" || key == "http-equiv" || key == "is":
 					bad = append(bad, key)
-				case key == "class" && !(a.Val == "missing" || strings.HasPrefix(a.Val, "language-")):
+				case key == "class" && !(a.Val == "missing" || a.Val == "task" && n.Data == "span" || strings.HasPrefix(a.Val, "language-")):
 					bad = append(bad, "class="+a.Val)
 				case key == "target" || key == "rel" && n.Data != "a":
 					bad = append(bad, key+"="+a.Val)

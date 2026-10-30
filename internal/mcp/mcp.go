@@ -232,7 +232,7 @@ var tools = []*tool{
 	{name: "write_page",
 		description: "Create a page, or replace the whole text of an existing one. To replace, pass expected_version from get_page; without it this only creates a new page and refuses if the page exists. Prefer edit_page for small changes. If you may only suggest, the change is queued for review.",
 		schema: obj([]string{"space", "path", "markdown"}, map[string]any{"space": str("space name"), "path": str("page path"),
-			"markdown":         str("the complete Markdown text; plain CommonMark: no tables, no raw HTML, no [[wiki links]]"),
+			"markdown":         str("the complete Markdown text; GitHub Flavored Markdown (tables and task lists work); no raw HTML, no footnotes, no [[wiki links]]"),
 			"expected_version": num("the version you read, when replacing an existing page"), "note": str("optional: why, shown to reviewers")}),
 		run: (*Server).writePage},
 	{name: "edit_page",

@@ -45,7 +45,7 @@ docker:
 FUZZTIME ?= 15s
 fuzz:
 	@for t in img:FuzzProcess img:FuzzScale diff:FuzzApplyNeverPanics diff:FuzzDiffRoundTrip wiki:FuzzRewriteNeverBreaksText wiki:FuzzLinkResolution \
-		store:FuzzPaths store:FuzzSearchText store:FuzzSearchAny archive:FuzzImport mcp:FuzzHandle mcp:FuzzSnippetText ai:FuzzLinkCitations ai:FuzzCleanDraftAndKeywords server:FuzzRequestPaths render:FuzzRenderIsAlwaysSafe render:FuzzRewriteImageRefKeepsTheTextSafe; do \
+		store:FuzzPaths store:FuzzSearchText store:FuzzSearchAny archive:FuzzImport mcp:FuzzHandle mcp:FuzzSnippetText ai:FuzzLinkCitations ai:FuzzCleanDraftAndKeywords ai:FuzzParseEdit server:FuzzRequestPaths render:FuzzRenderIsAlwaysSafe render:FuzzRewriteImageRefKeepsTheTextSafe; do \
 		pkg=$${t%%:*}; name=$${t#*:}; echo "== $$pkg $$name"; \
 		go test ./internal/$$pkg -run '^$$' -fuzz="^$$name\$$" -fuzztime=$(FUZZTIME) || exit 1; \
 	done

@@ -83,6 +83,11 @@
 </section>
 <div class="panes"><textarea name="body" id="src" required>{{.Source}}</textarea><div id="preview" class="doc preview"></div></div>
 </form>
+{{if and .AIOn .Space.AIEnabled}}<form id="assist" class="assist" data-api="{{.Base}}/_api/ai/edit" data-space="{{.Space.Slug}}">
+<input type="text" id="assist-q" maxlength="4000" autocomplete="off" aria-label="Instruction for the assistant" placeholder="Ask the assistant (Ctrl+/): “fix spelling and grammar”, “outline as a bulleted list”, “table with 3 columns and 5 rows here”">
+<button class="primary" id="assist-go">Go</button><button type="button" id="assist-undo" disabled title="Undo the assistant's last change (Ctrl+Z)">Undo</button>
+<span id="assist-msg" role="status" title="Selected text is what the assistant works on. New content goes at the end of the page; say “here” or “insert” to put it at the cursor (after the selection)."></span>
+</form>{{end}}
 <dialog id="media" class="media"><form method="dialog">
 <h3>Images</h3>
 <div class="media-bar"><input type="search" id="media-q" placeholder="Search the library…" autocomplete="off">

@@ -204,7 +204,7 @@ func TestEditabilityHeaders(t *testing.T) {
 	expect(t, e.do("PUT", "/main/doc/kid", "kid", "Content-Type", md), 201)
 
 	h := e.do("HEAD", "/main/doc", "", "Accept", md).Header()
-	if ct := h.Get("Content-Type"); ct != "text/markdown; charset=utf-8; variant=CommonMark" {
+	if ct := h.Get("Content-Type"); ct != "text/markdown; charset=utf-8; variant=GFM" {
 		t.Fatalf("content-type %q", ct)
 	}
 	if a := h.Get("Allow"); a != "GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS" {

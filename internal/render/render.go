@@ -12,13 +12,22 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 var md = goldmark.New(
-	// Strict CommonMark: no extensions. Tables, strikethrough, task lists, bare-URL
-	// autolinks and footnotes are all off, so that syntax shows as plain text.
+	// CommonMark plus the four GitHub Flavored Markdown extensions: tables,
+	// strikethrough, task lists and bare-URL autolinks. Footnotes and the rest
+	// stay off, so that syntax shows as plain text.
+	goldmark.WithExtensions(extension.GFM),
+	// Task list items show an emoji instead of a checkbox (this beats the
+	// extension's own renderer, which has a lower priority number to lose).
+	goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(taskEmoji{}, 100))),
 	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 )
 
@@ -36,8 +45,31 @@ var policy = func() *bluemonday.Policy {
 	p.AllowAttrs("decoding").Matching(regexp.MustCompile(`^async$`)).OnElements("img")
 	p.AllowAttrs("class").Matching(regexp.MustCompile(`^missing$`)).OnElements("a")
 	p.AllowAttrs("style").Matching(regexp.MustCompile(`^--r:\d{1,4}(\.\d{1,4})?$`)).OnElements("img")
+	// The emoji that stands for a task list item's box (see taskEmoji).
+	p.AllowAttrs("class").Matching(regexp.MustCompile(`^task$`)).OnElements("span")
+	p.AllowAttrs("role").Matching(regexp.MustCompile(`^img$`)).OnElements("span")
+	p.AllowAttrs("aria-label").Matching(regexp.MustCompile(`^(done|not done)$`)).OnElements("span")
+	// Column alignment from a table's separator row.
+	p.AllowAttrs("style").Matching(regexp.MustCompile(`^text-align:\s*(left|right|center)$`)).OnElements("th", "td")
 	return p
 }()
+
+// taskEmoji draws the box of a task list item as an emoji: no form control
+// is ever written to a page.
+type taskEmoji struct{}
+
+func (taskEmoji) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(east.KindTaskCheckBox, func(w util.BufWriter, _ []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			if n.(*east.TaskCheckBox).IsChecked {
+				w.WriteString(`<span class="task" role="img" aria-label="done">✅</span> `)
+			} else {
+				w.WriteString(`<span class="task" role="img" aria-label="not done">⬜</span> `)
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+}
 
 // Image says how one library image appears on the page.
 type Image struct {

@@ -23,6 +23,7 @@ import (
 //	GET  /_api/ai          what is available to the caller
 //	POST /_api/ai/ask      {"question", "space"?}  -> an answer built only from pages the caller may read, with sources
 //	POST /_api/ai/draft    {"space", "instruction", "path"?} -> Markdown for a page; nothing is saved
+//	POST /_api/ai/edit     {"space", "instruction", "before", "selected", "after"} -> text to replace or insert in the editor (ai_edit.go)
 //
 // A draft is only text. Saving it is an ordinary write by the person who asked
 // (a PUT that they may or may not be allowed to make), so editors publish it
@@ -69,6 +70,8 @@ func (s *Server) aiAPI(w http.ResponseWriter, r *http.Request, parts []string) {
 		s.aiAsk(w, r)
 	case len(parts) == 1 && parts[0] == "draft" && r.Method == http.MethodPost:
 		s.aiDraft(w, r)
+	case len(parts) == 1 && parts[0] == "edit" && r.Method == http.MethodPost:
+		s.aiEdit(w, r)
 	default:
 		w.Header().Set("Allow", "GET, POST")
 		http.Error(w, "not found", http.StatusNotFound)
@@ -401,7 +404,7 @@ func (s *Server) aiDraft(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), aiTimeout)
 	defer cancel()
 	start := time.Now()
-	res, err := s.AI.Complete(ctx, ai.DraftPrompt(in.Instruction, existing, docs))
+	res, err := s.AI.Complete(ctx, ai.DraftPrompt(in.Instruction, existing, docs, imageNames(sp)))
 	if err != nil {
 		s.aiFailure(w, err, "draft")
 		return
@@ -426,4 +429,20 @@ func (s *Server) aiPage(w http.ResponseWriter, r *http.Request) {
 		d.Path = p
 	}
 	s.renderHTML(w, "ask", d)
+}
+
+// imageNames lists the image files in a space's library, for the model to
+// refer to by name.
+func imageNames(sp *store.Space) []string {
+	list, err := sp.ListAssets("", 200)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, a := range list {
+		if strings.HasPrefix(a.Mime, "image/") {
+			out = append(out, a.Name)
+		}
+	}
+	return out
 }

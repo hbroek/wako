@@ -206,18 +206,21 @@ func TestLinksExtraction(t *testing.T) {
 	}
 }
 
-func TestOnlyCommonMarkBlocksAndSpans(t *testing.T) {
+func TestGFMAndNothingElse(t *testing.T) {
 	cases := []struct {
 		name, in        string
 		absent, present []string
 	}{
-		{"table", "| a | b |\n|---|---|\n| 1 | 2 |\n", []string{"<table", "<td"}, []string{"| a | b |"}},
-		{"strikethrough", "this is ~~gone~~ text", []string{"<del", "<s>"}, []string{"~~gone~~"}},
-		{"task list", "- [ ] todo\n- [x] done\n", []string{"checkbox", "<input"}, []string{"<li>[ ] todo</li>", "<li>[x] done</li>"}},
+		{"table", "| a | b |\n|:--|--:|\n| 1 | 2 |\n", nil, []string{"<table", "<th", `text-align:left`, `text-align:right`, "<td"}},
+		{"strikethrough", "this is ~~gone~~ text", []string{"~~"}, []string{"<del>gone</del>"}},
+		{"task list", "- [ ] todo\n- [x] done\n", []string{"[ ]", "[x]", "<input"}, []string{"⬜</span> todo", "✅</span> done", `aria-label="done"`}},
+		{"no inputs", "- [x] a\n\n<input type=checkbox checked onfocus=alert(1)>\n", []string{"onfocus", "<input"}, nil},
+		{"emails", "write to a.b@example.com", nil, []string{`<a href="mailto:a.b@example.com"`}},
+		{"autolink ends", "(see https://example.com/a).", nil, []string{`<a href="https://example.com/a"`}},
 		// Everything CommonMark has still works.
 		{"basics", "# T\n\n*em* **strong** `code` [l](u)\n\n> q\n\n1. a\n2. b\n\n---\n\n    indented\n", nil,
 			[]string{"<h1", "<em>em</em>", "<strong>strong</strong>", "<code>code</code>", `<a href="u">`, "<blockquote>", "<ol>", "<hr", "<pre>"}},
-		{"bare url", "see https://example.com/a and www.example.com", []string{"<a "}, []string{"https://example.com/a and www.example.com"}},
+		{"bare url", "see https://example.com/a and www.example.com", nil, []string{`<a href="https://example.com/a"`, `<a href="http://www.example.com"`}},
 		{"footnote", "Text.[^1]\n\n[^1]: The note.\n", []string{"footnote", "<sup", "<li id"}, []string{"[^1]"}},
 		// Angle-bracket autolinks are part of CommonMark itself.
 		{"angle autolink", "<https://example.com/a>", nil, []string{`<a href="https://example.com/a"`}},

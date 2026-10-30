@@ -5,7 +5,7 @@
 A wiki that stores plain, portable Markdown in SQLite. One static program, no runtime dependencies.
 
 - **Markdown in, Markdown out.** `GET` with `Accept: text/markdown` (or a `.md` suffix) returns the text you wrote; a browser gets HTML. `PUT`, `POST`, `PATCH`, `DELETE` do what you expect.
-- **Strict CommonMark.** No extensions, no `[[wiki links]]`, no raw HTML: your pages read the same in any Markdown viewer.
+- **GitHub Flavored Markdown, nothing more.** CommonMark plus tables, strikethrough, task lists (shown as ✅ and ⬜) and bare-URL autolinks. No footnotes, no `[[wiki links]]`, no raw HTML: your pages read the same in any Markdown viewer.
 - **Spaces.** Many independent wikis on one server, each with its own SQLite file, members and anonymous read-only switch.
 - **Images** live in a per-space media library. Pages say `![alt](name.png)`; the server serves the picture next to the page, strips metadata, shrinks large ones and makes `?w=800` / `?w=240` variants.
 - **History** with diffs, restore, conflict-safe saves, search, backlinks, a broken-link report and RSS feeds of changes.
@@ -109,6 +109,7 @@ Then a server administrator switches the features on, space by space, under the 
 - **Nothing saves by itself.** A draft is only text. Saving it is the person's own write: an editor publishes it, a suggester queues it for review, and the history says "drafted by AI (model)".
 - **Pages are data, not instructions.** Page text goes to the model marked as untrusted, the model has no tools in Ask, and answers are shown without images (so a page cannot make the answer send your question to another site).
 - **Cost control.** Only signed-in users can use it; each has an hourly allowance (`-ai-requests-per-hour`); a question with no matching pages is answered without calling the model.
+- **In the editor.** With the features on for the space, a box under the editor takes instructions: "fix spelling and grammar", "outline as a bulleted list", "table with 3 columns and 5 rows". Selected text is what it works on; with nothing selected, a fix covers the whole page. New content goes to the end of the page, or to the cursor (after the selection) when the instruction says "here" or "insert". The change appears in the editor only: it is not saved, **Undo** (or Ctrl+Z, straight after) takes it back, and Ctrl+/ jumps to the box. A fix that the model could not finish is never applied. It needs edit or suggest rights in the space.
 - **Retrieval is keyword search**, not embeddings. It finds pages that share words with the question; it can miss a page that uses different words.
 
 ## Behind a reverse proxy

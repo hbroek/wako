@@ -210,7 +210,7 @@ func (s *Server) getPage(w http.ResponseWriter, r *http.Request, sp *store.Space
 
 	switch rep {
 	case reprMD:
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=CommonMark")
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=GFM")
 		if page != nil {
 			io.WriteString(w, page.Body)
 			return

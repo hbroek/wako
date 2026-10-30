@@ -384,7 +384,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		for _, sp := range spaces {
 			fmt.Fprintf(&b, "- [%s](%s/)\n", sp.Title, s.u(sp.Slug))
 		}
-		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=CommonMark")
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8; variant=GFM")
 		io.WriteString(w, b.String())
 	case reprJSON:
 		writeJSON(w, 200, spacesJSON(spaces))
