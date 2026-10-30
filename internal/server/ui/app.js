@@ -389,6 +389,9 @@
     if (wd) wd.addEventListener('click', function () { decide('withdraw', {}); });
   }
 
+  // ---- print / save as PDF ----
+  $$('[data-print]').forEach(function (b) { b.addEventListener('click', function () { window.print(); }); });
+
   // ---- restore an earlier revision ----
   $$('[data-restore]').forEach(function (b) {
     b.addEventListener('click', function () {

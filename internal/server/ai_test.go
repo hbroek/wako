@@ -449,3 +449,35 @@ func TestEditorShowsTheAssistantOnlyWhereAIIsOn(t *testing.T) {
 		t.Error("no assistant when creating a page")
 	}
 }
+
+func TestPrintViewHoldsThePageAndItsChildren(t *testing.T) {
+	e := newPropEnv(t)
+	e.do("PUT", "/main/doc", "# Doc\n\nParent text.\n", e.mdT, e.ed)
+	e.do("PUT", "/main/doc/kid", "# Kid\n\nChild text.\n", e.mdT, e.ed)
+	e.do("PUT", "/main/other", "# Other\n\nElsewhere.\n", e.mdT, e.ed)
+	get := func(p string) string {
+		return e.do("GET", p, "", e.ed, header("Accept", "text/html")).Body.String()
+	}
+	got := get("/main/doc?print")
+	for _, want := range []string{"Parent text.", "Child text.", "data-print"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("print view of a page lacks %q", want)
+		}
+	}
+	if strings.Contains(got, "Elsewhere.") {
+		t.Error("print view of a page includes an unrelated page")
+	}
+	if all := get("/main/?print"); !strings.Contains(all, "Elsewhere.") || !strings.Contains(all, "Child text.") {
+		t.Error("print view of the space lacks pages")
+	}
+}
+
+func TestShortLinksBecomeOrdinaryLinksOnSave(t *testing.T) {
+	e := newPropEnv(t)
+	e.do("PUT", "/main/guide", "# Guide\n", e.mdT, e.ed)
+	e.do("PUT", "/main/home", "See [[Guide]] and [[A new page]].\n", e.mdT, e.ed)
+	got := e.do("GET", "/main/home", "", e.ed, header("Accept", "text/markdown")).Body.String()
+	if want := "See [Guide](guide) and [A new page](a-new-page).\n"; got != want {
+		t.Errorf("stored %q, want %q", got, want)
+	}
+}

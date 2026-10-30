@@ -474,6 +474,7 @@ func (s *Server) applyProposal(sp *store.Space, id int64, reviewer string, in de
 		}
 		cond.IfMatch = &cur.Version
 	}
+	body = expandShortLinks(sp, p.Path, body)
 	page, _, err := sp.PutPage(p.Path, titleFor(body, p.Path), body, refsOf(body), cond)
 	if err != nil {
 		return nil, err

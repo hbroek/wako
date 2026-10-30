@@ -5,12 +5,13 @@
 A wiki that stores plain, portable Markdown in SQLite. One static program, no runtime dependencies.
 
 - **Markdown in, Markdown out.** `GET` with `Accept: text/markdown` (or a `.md` suffix) returns the text you wrote; a browser gets HTML. `PUT`, `POST`, `PATCH`, `DELETE` do what you expect.
-- **GitHub Flavored Markdown, nothing more.** CommonMark plus tables, strikethrough, task lists (shown as ✅ and ⬜) and bare-URL autolinks. No footnotes, no `[[wiki links]]`, no raw HTML: your pages read the same in any Markdown viewer.
+- **GitHub Flavored Markdown, nothing more.** CommonMark plus tables, strikethrough, task lists (shown as ✅ and ⬜) and bare-URL autolinks. No footnotes, no raw HTML. Typing `[[Page name]]` (or `[[Page name|label]]`) is a shortcut: when you save, it becomes an ordinary link, `[Page name](page-name)`, to the page with that title or name, or to a new page beside this one. Your pages read the same in any Markdown viewer.
 - **Spaces.** Many independent wikis on one server, each with its own SQLite file, members and anonymous read-only switch.
 - **Images** live in a per-space media library. Pages say `![alt](name.png)`; the server serves the picture next to the page, strips metadata, shrinks large ones and makes `?w=800` / `?w=240` variants.
 - **History** with diffs, restore, conflict-safe saves, search, backlinks, a broken-link report and RSS feeds of changes.
 - **Suggestions.** People (and programs) who may only suggest queue changes for an editor to review: a diff, accept or reject, credit to the author.
 - **AI, on your terms.** Any assistant can read and edit the wiki through MCP; you can ask the wiki questions and have pages drafted. Everything an assistant writes can wait for a person to approve it.
+- **PDF** through the browser: the **PDF** button opens a print view of a page and the pages below it (or the whole space) with a clean print stylesheet; choose "Save as PDF" in the print dialog.
 - **Export and import** as a zip of ordinary `.md` files and images, plus a `wako` command-line client.
 
 ## Run it

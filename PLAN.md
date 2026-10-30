@@ -13,7 +13,7 @@ Requirements are modeled on LeafWiki (single binary, page tree, Markdown editing
 | Language | Go 1.27 (`net/http` `ServeMux` method and path patterns) |
 | Executables | `wakod` (server) and `wako` (CLI client). Each is a static binary with no runtime dependencies. |
 | SQLite driver | `modernc.org/sqlite` (pure Go, no CGO), so `CGO_ENABLED=0` cross-compiles to linux/darwin/windows on amd64/arm64. FTS5 is built in. |
-| Markdown to HTML | `goldmark` with the GitHub Flavored Markdown extensions only (tables, strikethrough, task lists, autolinks; changed from strict CommonMark in Phase 9): no footnotes or `[[wiki links]]`, and raw HTML is omitted. A task list box is drawn as an emoji (✅ / ⬜) so no `<input>` is ever emitted; the markdown content type says `variant=GFM`. The output is still sanitized with `bluemonday`. |
+| Markdown to HTML | `goldmark` with the GitHub Flavored Markdown extensions only (tables, strikethrough, task lists, autolinks; changed from strict CommonMark in Phase 9): no footnotes, and raw HTML is omitted. A task list box is drawn as an emoji (✅ / ⬜) so no `<input>` is ever emitted; the markdown content type says `variant=GFM`. The output is still sanitized with `bluemonday`. |
 | UI | Plain HTML/CSS/JS via `go:embed`, no Node build. Textarea editor with server-rendered live preview. Mermaid is vendored. |
 | Content negotiation | `Accept: text/markdown` returns raw Markdown. A browser (`text/html`) gets rendered HTML. `application/json` returns metadata. |
 | `.md` alternative | A `.md` suffix on any page URL forces Markdown, regardless of `Accept`. It also works on `PUT`, `POST` and `DELETE`. Page slugs therefore may not end in `.md`. |
@@ -284,7 +284,7 @@ Image pipeline (`internal/img`, standard library only; adapted from the Weft pro
 - **Not measured:** these changes are meant to help Lighthouse (layout shift, image size, lazy loading), but no Lighthouse run has been made on this project yet.
 
 Phase 4 notes:
-- **No wiki syntax:** an earlier build understood `[[Page]]`; it was removed so that stored Markdown works unchanged in any other tool. Text written that way is now shown as written, and the old link-tracking rows are deleted on upgrade.
+- **Shortcut, not syntax:** `[[Page]]` and `[[Page|label]]` are expanded to ordinary Markdown links when a page is saved (PUT, POST, PATCH, accepted suggestion), so stored text never needs wako to be read (`wiki.ExpandShortLinks`). A name matches a page by title or last path segment, ignoring case (a page beside the current one wins); `a/b` is a path from the space root; no match means a new page beside the current one. Code, fenced blocks, `\[[` and `![[` are left alone. Nothing is tracked as wiki syntax.
 - **Links resolve** as a browser would from the page's URL: `sibling` is the page next to this one, and `docs/ops` from `faq` is `/docs/ops`. External URLs, `#anchors`, `_assets` paths and links that leave the space are not page links.
 - **Resolved on read:** the `links` table stores links as written, not where they pointed. Backlinks and the broken-link report resolve them when asked, so creating, deleting or moving a page needs no re-indexing, and nothing goes stale.
 - **What a move rewrites:** relative links are recomputed from the page's new location, absolute ones get the new path, and `[ref]: dest` definitions too. A link that still reaches its target from where the page now is is left exactly as written. Code, raw HTML, images and external links are never touched.

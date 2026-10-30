@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/hbroek/wako/internal/render"
 	"github.com/hbroek/wako/internal/store"
@@ -12,6 +13,19 @@ import (
 // refsOf extracts what a page's Markdown refers to.
 func refsOf(body string) store.Refs {
 	return store.Refs{Images: render.ImageRefs(body), Links: render.Links(body)}
+}
+
+// expandShortLinks turns [[Page name]] shortcuts into ordinary Markdown links
+// as a page is saved, so what is stored never needs wako to be read.
+func expandShortLinks(sp *store.Space, path, body string) string {
+	if !strings.Contains(body, "[[") {
+		return body
+	}
+	ix, err := sp.PageIndex()
+	if err != nil {
+		return body
+	}
+	return wiki.ExpandShortLinks(path, body, ix, store.ValidSlug)
 }
 
 // linkCtx resolves links on behalf of one request. It caches the per-space

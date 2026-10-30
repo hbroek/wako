@@ -6,20 +6,23 @@
 {{define "page"}}{{template "top" .}}{{template "crumbs" .}}
 {{if .Rev}}<div class="banner">You are looking at <strong>revision {{.Rev.Version}}</strong>, {{.Rev.Action}} by {{if .Rev.Author}}{{.Rev.Author}}{{else}}someone{{end}} on {{.Rev.At}}.{{if .Rev.Note}} <em>{{.Rev.Note}}</em>{{end}}{{if .Rev.Current}} This is the current text.{{end}}
 <a href="{{.Rev.PageURL}}">Current version</a> · <a href="{{.Rev.PageURL}}?history">History</a> · <a href="{{.Rev.ChangesURL}}">Changes</a>{{if and .CanWrite (not .Rev.Current)}} · <button type="button" data-restore="{{.Rev.Version}}" data-url="{{.Rev.PageURL}}">Restore this revision</button>{{end}}</div>
+{{else if .Print}}<div class="actions"><button type="button" class="primary" data-print>Print / Save as PDF</button><a class="btn" href="{{.PageURL}}">Back</a><span class="hint">Choose “Save as PDF” as the printer. Includes the pages below this one.</span></div>
 {{else if .MDURL}}<div class="actions">
 {{if .CanEdit}}<a id="edit-link" class="btn" href="?edit" title="Edit (Ctrl+E)">{{if .CanWrite}}Edit{{else}}Suggest an edit{{end}}</a><a class="btn" href="?create">{{if .CanWrite}}New child page{{else}}Suggest a child page{{end}}</a>{{end}}
 <a class="btn" href="?history">History</a>
 {{if .CanWrite}}<button type="button" data-dialog="move">Rename / move</button><button type="button" class="danger" data-dialog="delete">Delete</button>{{end}}
 <a class="btn" href="{{.MDURL}}">Markdown</a>
+<a class="btn" href="?print" title="This page and the pages below it, ready to print or save as PDF">PDF</a>
 </div>{{else}}<div class="actions">
 {{if .CanEdit}}<a class="btn" href="?create">{{if .CanWrite}}New page{{else}}Suggest a page{{end}}</a>{{end}}
 <a class="btn" href="?changes">Recent changes</a>
 {{if .CanWrite}}<a class="btn" href="?broken">Broken links</a>{{end}}
 <a class="btn" href="{{.FeedURL}}" title="Subscribe with a feed reader">RSS</a>
+<a class="btn" href="?print" title="The whole space, ready to print or save as PDF">PDF</a>
 </div>{{end}}
 <main class="doc">
-{{if .MDURL}}{{.Body}}{{else}}<h1>{{.Title}}</h1>{{if not .Children}}<p>No pages yet.{{if .CanWrite}} Use “New page” above.{{end}}</p>{{end}}{{end}}
-{{if .Children}}<h2>Pages</h2><ul>{{range .Children}}<li><a href="{{.URL}}">{{.Title}}</a></li>{{end}}</ul>{{end}}
+{{if .Print}}{{.Body}}{{else if .MDURL}}{{.Body}}{{else}}<h1>{{.Title}}</h1>{{if not .Children}}<p>No pages yet.{{if .CanWrite}} Use “New page” above.{{end}}</p>{{end}}{{end}}
+{{if and .Children (not .Print)}}<h2>Pages</h2><ul>{{range .Children}}<li><a href="{{.URL}}">{{.Title}}</a></li>{{end}}</ul>{{end}}
 </main>
 {{if and .MDURL (not .Rev)}}<section id="backlinks" class="backlinks" data-url="{{.Base}}/_api/spaces/{{.Space.Slug}}/pages/{{.Path}}/backlinks" hidden><h2>Linked from</h2><ul></ul></section>{{end}}
 {{if and .CanWrite .MDURL (not .Rev)}}

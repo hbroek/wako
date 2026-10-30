@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"strconv"
@@ -282,6 +283,14 @@ func (s *Server) htmlPage(w http.ResponseWriter, r *http.Request, sp *store.Spac
 		s.renderHTML(w, "broken", d)
 	case acc.Admin && path == "" && q.Has("settings"):
 		s.renderHTML(w, "settings", d)
+	case q.Has("print"):
+		body, err := s.printBody(r, sp, path, page)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		d.Body, d.Print = body, true
+		s.renderHTML(w, "page", d)
 	default:
 		if page != nil {
 			bound, err := sp.Bindings(page.ID)
@@ -353,6 +362,7 @@ func (s *Server) putPage(w http.ResponseWriter, r *http.Request, sp *store.Space
 	if !ok {
 		return
 	}
+	body = expandShortLinks(sp, path, body)
 	page, created, err := sp.PutPage(path, titleFor(body, path), body, refsOf(body), s.cond(r, c))
 	if errors.Is(err, store.ErrExists) {
 		err = store.ErrVersion // If-None-Match: * failed
@@ -449,6 +459,7 @@ func (s *Server) postPage(w http.ResponseWriter, r *http.Request, sp *store.Spac
 	if title == "" {
 		title = titleFor(body, slug)
 	}
+	body = expandShortLinks(sp, strings.Trim(path+"/"+slug, "/"), body)
 	page, _, err := sp.PutPage(strings.Trim(path+"/"+slug, "/"), title, body, refsOf(body), store.Cond{MustNotExist: true, By: s.actor(r)})
 	if err != nil {
 		s.fail(w, err)
@@ -491,8 +502,7 @@ func (s *Server) missingPage(w http.ResponseWriter, r *http.Request, sp *store.S
 		s.renderHTML(w, "editor", d)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
-	s.renderHTML(w, "missing", d)
+	s.renderHTMLStatus(w, http.StatusNotFound, "missing", d)
 }
 
 // resolver turns the bare image names in a page into library URLs. Saved pages
@@ -523,4 +533,59 @@ func (s *Server) pageImage(sp *store.Space, a *store.AssetInfo) render.Image {
 		return render.Image{Src: full + "?w=" + strconv.Itoa(widthContent), Link: full, Width: w, Height: h}
 	}
 	return render.Image{Src: full, Width: a.Width, Height: a.Height}
+}
+
+// printBody renders a page and every page below it, in tree order, as one
+// document for the browser's "Save as PDF". The root path covers the space.
+func (s *Server) printBody(r *http.Request, sp *store.Space, path string, page *store.Page) (template.HTML, error) {
+	tree, err := sp.Tree()
+	if err != nil {
+		return "", err
+	}
+	var paths []string
+	var walk func(nodes []*store.Node)
+	walk = func(nodes []*store.Node) {
+		for _, n := range nodes {
+			paths = append(paths, n.Path)
+			walk(n.Children)
+		}
+	}
+	if path == "" {
+		walk(tree)
+	} else {
+		paths = append(paths, path)
+		var find func(nodes []*store.Node) bool
+		find = func(nodes []*store.Node) bool {
+			for _, n := range nodes {
+				if n.Path == path {
+					walk(n.Children)
+					return true
+				}
+				if find(n.Children) {
+					return true
+				}
+			}
+			return false
+		}
+		find(tree)
+	}
+	var b strings.Builder
+	for _, p := range paths {
+		pg := page
+		if p != path || pg == nil {
+			if pg, err = sp.GetPage(p); err != nil || pg == nil {
+				continue
+			}
+		}
+		bound, err := sp.Bindings(pg.ID)
+		if err != nil {
+			return "", err
+		}
+		html, err := s.renderPage(r, sp, pg.Path, pg.Body, bound, false)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(`<section class="printpage">` + html + `</section>`)
+	}
+	return tmplHTML(b.String()), nil
 }

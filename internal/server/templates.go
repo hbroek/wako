@@ -41,6 +41,7 @@ type pageData struct {
 	Mode        string // "edit", "create" or "new"
 	Source      string
 	Body        template.HTML
+	Print       bool // ?print: the page and everything below it as one document
 	Crumbs      []link
 	Children    []link
 	Tree        treeCtx
@@ -119,8 +120,17 @@ var assetVersion = func() string {
 }()
 
 func (s *Server) renderHTML(w http.ResponseWriter, name string, d pageData) {
+	s.renderHTMLStatus(w, http.StatusOK, name, d)
+}
+
+// renderHTMLStatus is renderHTML with another status. The headers must be set
+// before the status is written, or they are lost and the page loses its CSP.
+func (s *Server) renderHTMLStatus(w http.ResponseWriter, code int, name string, d pageData) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", pageCSP)
+	if code != http.StatusOK {
+		w.WriteHeader(code)
+	}
 	if err := tmpl.ExecuteTemplate(w, name, d); err != nil {
 		s.logger().Error("rendering a template", "template", name, "err", err)
 	}

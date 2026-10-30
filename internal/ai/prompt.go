@@ -74,7 +74,7 @@ func documents(docs []Doc) string {
 }
 
 const markdownRules = `Write GitHub Flavored Markdown: headings, paragraphs, lists, task lists, tables, emphasis, strikethrough, code, block quotes, links and images.
-Do not use footnotes, raw HTML or [[wiki links]]; they do not render.`
+Do not use footnotes or raw HTML; they do not render. Link to pages with ordinary Markdown links, not [[wiki links]].`
 
 // imageRules tells the model how this wiki shows a picture. Pictures live in
 // the space's image library and are named, not addressed.

@@ -420,6 +420,7 @@ func (s *Server) patchPage(w http.ResponseWriter, r *http.Request, sp *store.Spa
 		w.WriteHeader(http.StatusOK) // the diff changes nothing
 		return
 	}
+	body = expandShortLinks(sp, path, body)
 	page, _, err = sp.PutPage(path, titleFor(body, path), body, refsOf(body), store.Cond{IfMatch: &v, By: s.actor(r)})
 	if err != nil {
 		s.fail(w, err)
