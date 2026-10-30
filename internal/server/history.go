@@ -420,12 +420,13 @@ func (s *Server) patchPage(w http.ResponseWriter, r *http.Request, sp *store.Spa
 		w.WriteHeader(http.StatusOK) // the diff changes nothing
 		return
 	}
-	body = expandShortLinks(sp, path, body)
+	body, stubs := expandShortLinks(sp, path, body)
 	page, _, err = sp.PutPage(path, titleFor(body, path), body, refsOf(body), store.Cond{IfMatch: &v, By: s.actor(r)})
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	createStubs(sp, stubs, s.actor(r))
 	w.Header().Set("ETag", etagFor(page.Version, reprMD))
 	w.Header().Set("Location", s.u(sp.Slug, page.Path))
 	w.WriteHeader(http.StatusOK)

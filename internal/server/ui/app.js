@@ -35,7 +35,13 @@
     try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
   });
   var toggle = $('#navtoggle');
-  function toggleNav() { body.classList.toggle('nav-open'); }
+  // Small screens slide the tree in as a drawer; wider ones hide it for good (remembered).
+  function toggleNav() {
+    if (matchMedia('(max-width:800px)').matches) { body.classList.toggle('nav-open'); return; }
+    var hidden = body.classList.toggle('nav-hidden');
+    try { localStorage.setItem('nav-hidden', hidden ? '1' : ''); } catch (e) {}
+  }
+  try { if (localStorage.getItem('nav-hidden')) body.classList.add('nav-hidden'); } catch (e) {}
   if (toggle) toggle.addEventListener('click', toggleNav);
 
   // ---- tree: expand/collapse and drag and drop ----
@@ -629,8 +635,21 @@
       else if (mod && !e.shiftKey && !e.altKey && e.code === 'KeyB') { e.preventDefault(); wrap('**'); }
       else if (mod && !e.shiftKey && !e.altKey && e.code === 'KeyI') { e.preventDefault(); wrap('*'); }
       else if (mod && e.altKey && /^Digit[123]$/.test(e.code)) { e.preventDefault(); heading(+e.code.slice(5)); }
-      else if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { location.href = view; }
+      else if (mod && e.shiftKey && e.key === 'Enter') { e.preventDefault(); toggleFocus(); }
+      else if (e.key === 'Escape' && !document.querySelector('dialog[open]')) {
+        if (body.classList.contains('focus')) toggleFocus(); else location.href = view;
+      }
     });
+
+    // ---- focus mode: only the editor, no tree, header, preview or assistant ----
+    var fbtn = $('#focus-btn');
+    function toggleFocus() {
+      var on = body.classList.toggle('focus');
+      if (on) panes.classList.remove('show-preview');
+      fbtn.textContent = on ? 'Exit focus' : 'Focus';
+      src.focus();
+    }
+    fbtn.addEventListener('click', toggleFocus);
 
     // ---- the assistant under the editor ----
     var asst = $('#assist');

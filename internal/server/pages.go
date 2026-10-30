@@ -362,7 +362,7 @@ func (s *Server) putPage(w http.ResponseWriter, r *http.Request, sp *store.Space
 	if !ok {
 		return
 	}
-	body = expandShortLinks(sp, path, body)
+	body, stubs := expandShortLinks(sp, path, body)
 	page, created, err := sp.PutPage(path, titleFor(body, path), body, refsOf(body), s.cond(r, c))
 	if errors.Is(err, store.ErrExists) {
 		err = store.ErrVersion // If-None-Match: * failed
@@ -371,6 +371,7 @@ func (s *Server) putPage(w http.ResponseWriter, r *http.Request, sp *store.Space
 		s.fail(w, err)
 		return
 	}
+	createStubs(sp, stubs, s.actor(r))
 	w.Header().Set("ETag", etagFor(page.Version, reprMD))
 	w.Header().Set("Location", s.u(sp.Slug, page.Path))
 	if created {
@@ -459,12 +460,13 @@ func (s *Server) postPage(w http.ResponseWriter, r *http.Request, sp *store.Spac
 	if title == "" {
 		title = titleFor(body, slug)
 	}
-	body = expandShortLinks(sp, strings.Trim(path+"/"+slug, "/"), body)
+	body, stubs := expandShortLinks(sp, strings.Trim(path+"/"+slug, "/"), body)
 	page, _, err := sp.PutPage(strings.Trim(path+"/"+slug, "/"), title, body, refsOf(body), store.Cond{MustNotExist: true, By: s.actor(r)})
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	createStubs(sp, stubs, s.actor(r))
 	w.Header().Set("ETag", etagFor(page.Version, reprMD))
 	w.Header().Set("Location", s.u(sp.Slug, page.Path))
 	w.WriteHeader(http.StatusCreated)

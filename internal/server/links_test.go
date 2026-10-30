@@ -53,7 +53,7 @@ func TestLinksInPages(t *testing.T) {
 	putPage(t, e, "main", "docs/ops", "# Operations")
 	putPage(t, e, "other", "notes", "# Team Notes")
 	putPage(t, e, "main", "home",
-		"# Home\n\n[ops](docs/ops) [abs](/main/docs/ops) [team](/other/notes) [new](my-new-page) [gone](docs/nope) [ext](https://example.com/x) [top](#top)\n\nAlso [[My new page]] which is a shortcut.\n")
+		"# Home\n\n[ops](docs/ops) [abs](/main/docs/ops) [team](/other/notes) [new](my-new-page) [gone](docs/nope) [ext](https://example.com/x) [top](#top)\n")
 	html := expect(t, e.do("GET", "/main/home", "", "Accept", "text/html"), 200)
 	for _, want := range []string{
 		`<a href="docs/ops">ops</a>`,
@@ -63,21 +63,20 @@ func TestLinksInPages(t *testing.T) {
 		`<a href="docs/nope" title="This page does not exist yet" class="missing">gone</a>`,
 		`<a href="https://example.com/x" rel="nofollow">ext</a>`,
 		`<a href="#top">top</a>`,
-		`<a href="my-new-page" title="This page does not exist yet" class="missing">My new page</a>`, // the shortcut became a link
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing %s\n%s", want, html)
 		}
 	}
-	if strings.Count(html, `class="missing"`) != 3 {
-		t.Errorf("only the three broken links should be marked: %s", html)
+	if strings.Count(html, `class="missing"`) != 2 {
+		t.Errorf("only the two broken links should be marked: %s", html)
 	}
 	// A broken link leads to the page that offers to create it.
 	if page := expect(t, e.do("GET", "/main/my-new-page", "", "Accept", "text/html"), 404); !strings.Contains(page, "Create this page") {
 		t.Errorf("no create offer: %s", page)
 	}
 	// The Markdown view is exactly what was saved.
-	if got := md_(t, e, "main", "home"); !strings.Contains(got, "[My new page](my-new-page)") || !strings.Contains(got, "[ops](docs/ops)") {
+	if got := md_(t, e, "main", "home"); !strings.Contains(got, "[ops](docs/ops)") {
 		t.Errorf("markdown: %s", got)
 	}
 	// The live preview marks missing links relative to the page being edited.

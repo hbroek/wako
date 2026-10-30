@@ -30,6 +30,9 @@ func slugOf(s string) string {
 	return strings.Trim(slugBadRe.ReplaceAllString(s, "-"), "-._")
 }
 
+// Stub is a page a shortcut points at that does not exist yet.
+type Stub struct{ Path, Title string }
+
 // ExpandShortLinks rewrites the [[Page name]] and [[Page name|label]] shortcuts
 // in body, written on the page at src, into ordinary Markdown links to a page of
 // the same space, so the stored text reads the same in any Markdown tool.
@@ -38,12 +41,14 @@ func slugOf(s string) string {
 // case; with several matches the one beside src wins, then the shortest path.
 // A name with "/" is a path from the space root. A name that matches nothing
 // points at a new page next to src (which then shows as a link to a missing
-// page). Shortcuts in code, images (![[x]]), and names that cannot be a valid
+// page; it is reported as a Stub for the caller to create). Shortcuts in code, images (![[x]]), and names that cannot be a valid
 // slug, are left as written. valid says whether a segment is usable as a slug.
-func ExpandShortLinks(src, body string, ix *Index, valid func(string) bool) string {
+func ExpandShortLinks(src, body string, ix *Index, valid func(string) bool) (string, []Stub) {
 	if !strings.Contains(body, "[[") {
-		return body
+		return body, nil
 	}
+	var stubs []Stub
+	seen := map[string]bool{}
 	dir := path.Dir(src)
 	if dir == "." {
 		dir = ""
@@ -101,6 +106,14 @@ func ExpandShortLinks(src, body string, ix *Index, valid func(string) bool) stri
 		if label == "" {
 			label = name
 		}
+		if !ix.Has(target) && target != src && !seen[target] {
+			seen[target] = true
+			title := name
+			if i := strings.LastIndex(title, "/"); i >= 0 {
+				title = strings.TrimSpace(title[i+1:])
+			}
+			stubs = append(stubs, Stub{target, title})
+		}
 		return "[" + label + "](" + relPath(dir, target) + ")"
 	}
 
@@ -130,7 +143,7 @@ func ExpandShortLinks(src, body string, ix *Index, valid func(string) bool) stri
 		out.WriteString(expandProse(line[last:], expand))
 		lines[i] = out.String()
 	}
-	return strings.Join(lines, "")
+	return strings.Join(lines, ""), stubs
 }
 
 // expandProse applies f to each shortcut in s, except an escaped (\[[) or image (![[) one.

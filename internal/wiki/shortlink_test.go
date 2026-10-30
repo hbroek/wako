@@ -26,8 +26,18 @@ func TestExpandShortLinks(t *testing.T) {
 		{"notes", "[[a.md]] [[!!]] [[open", "[[a.md]] [[!!]] [[open"},
 		{"notes", "[[one]] and [[two]]", "[one](one) and [two](two)"},
 	} {
-		if got := ExpandShortLinks(c.src, c.in, ix, func(s string) bool { return ok(s) && s[len(s)-3:] != ".md" }); got != c.want {
+		if got, _ := ExpandShortLinks(c.src, c.in, ix, func(s string) bool { return ok(s) && s[len(s)-3:] != ".md" }); got != c.want {
 			t.Errorf("%s: %q\n got %q\nwant %q", c.src, c.in, got, c.want)
 		}
+	}
+}
+
+func TestExpandShortLinksReportsNewPages(t *testing.T) {
+	ix := NewIndex([]Page{{"docs", "Docs"}})
+	valid := func(s string) bool { return s != "" }
+	_, stubs := ExpandShortLinks("docs", "[[Docs]] [[New Thing]] [[new thing]] [[docs/Deep one]] [[docs]]", ix, valid)
+	want := []Stub{{"new-thing", "New Thing"}, {"docs/deep-one", "Deep one"}}
+	if len(stubs) != len(want) || stubs[0] != want[0] || stubs[1] != want[1] {
+		t.Errorf("stubs %v, want %v", stubs, want)
 	}
 }

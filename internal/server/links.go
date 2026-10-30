@@ -16,16 +16,40 @@ func refsOf(body string) store.Refs {
 }
 
 // expandShortLinks turns [[Page name]] shortcuts into ordinary Markdown links
-// as a page is saved, so what is stored never needs wako to be read.
-func expandShortLinks(sp *store.Space, path, body string) string {
+// as a page is saved, so what is stored never needs wako to be read. It also
+// returns the pages the shortcuts point at that do not exist yet.
+func expandShortLinks(sp *store.Space, path, body string) (string, []wiki.Stub) {
 	if !strings.Contains(body, "[[") {
-		return body
+		return body, nil
 	}
 	ix, err := sp.PageIndex()
 	if err != nil {
-		return body
+		return body, nil
 	}
 	return wiki.ExpandShortLinks(path, body, ix, store.ValidSlug)
+}
+
+// createStubs makes the pages named by shortcuts (and any missing parents) once
+// the page holding them is saved. Each starts as just its title, so the link
+// works at once. Failures are ignored: the link then offers to create the page.
+func createStubs(sp *store.Space, stubs []wiki.Stub, by string) {
+	for _, st := range stubs {
+		parts := strings.Split(st.Path, "/")
+		for i := range parts {
+			p := strings.Join(parts[:i+1], "/")
+			if _, err := sp.GetPage(p); err == nil {
+				continue
+			}
+			title := parts[i]
+			if i == len(parts)-1 {
+				title = st.Title
+			}
+			body := "# " + title + "\n"
+			if _, _, err := sp.PutPage(p, titleFor(body, p), body, refsOf(body), store.Cond{MustNotExist: true, By: by}); err != nil {
+				break
+			}
+		}
+	}
 }
 
 // linkCtx resolves links on behalf of one request. It caches the per-space

@@ -474,7 +474,7 @@ func (s *Server) applyProposal(sp *store.Space, id int64, reviewer string, in de
 		}
 		cond.IfMatch = &cur.Version
 	}
-	body = expandShortLinks(sp, p.Path, body)
+	body, stubs := expandShortLinks(sp, p.Path, body)
 	page, _, err := sp.PutPage(p.Path, titleFor(body, p.Path), body, refsOf(body), cond)
 	if err != nil {
 		return nil, err
@@ -482,6 +482,7 @@ func (s *Server) applyProposal(sp *store.Space, id int64, reviewer string, in de
 	if err := sp.DecideProposal(id, store.ProposalAccepted, reviewer, in.Note, page.Version); err != nil {
 		return nil, err
 	}
+	createStubs(sp, stubs, reviewer)
 	return page, nil
 }
 

@@ -480,4 +480,30 @@ func TestShortLinksBecomeOrdinaryLinksOnSave(t *testing.T) {
 	if want := "See [Guide](guide) and [A new page](a-new-page).\n"; got != want {
 		t.Errorf("stored %q, want %q", got, want)
 	}
+	// The page the shortcut points at is created, titled as typed; existing ones are left alone.
+	if kid := e.do("GET", "/main/a-new-page", "", e.ed, header("Accept", "text/markdown")); kid.Code != 200 || kid.Body.String() != "# A new page\n" {
+		t.Errorf("stub: %d %q", kid.Code, kid.Body.String())
+	}
+	if g := e.do("GET", "/main/guide", "", e.ed, header("Accept", "text/markdown")).Body.String(); g != "# Guide\n" {
+		t.Errorf("an existing page was touched: %q", g)
+	}
+	// A nested name also creates its missing parent.
+	e.do("PUT", "/main/home", "[[deep/er/still]]\n", e.mdT, e.ed)
+	for p, want := range map[string]string{"deep": "# deep\n", "deep/er": "# er\n", "deep/er/still": "# still\n"} {
+		if got := e.do("GET", "/main/"+p, "", e.ed, header("Accept", "text/markdown")).Body.String(); got != want {
+			t.Errorf("%s: %q, want %q", p, got, want)
+		}
+	}
+}
+
+func TestEditorHasCheatsheetAndFocusMode(t *testing.T) {
+	e := newPropEnv(t)
+	e.do("PUT", "/main/doc", "# Doc\n", e.mdT, e.ed)
+	page := e.do("GET", "/main/doc?edit", "", e.ed, header("Accept", "text/html")).Body.String()
+	if !strings.Contains(page, `<details class="cheat">`) || strings.Contains(page, `<details class="cheat" open`) {
+		t.Error("the cheatsheet is missing or not collapsed")
+	}
+	if !strings.Contains(page, `id="focus-btn"`) {
+		t.Error("no focus button")
+	}
 }
