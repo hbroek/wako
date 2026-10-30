@@ -200,6 +200,9 @@ type tool struct {
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
 func num(desc string) map[string]any { return map[string]any{"type": "integer", "description": desc} }
 func obj(required []string, props map[string]any) map[string]any {
+	if required == nil {
+		required = []string{} // JSON null is not a valid "required"; clients reject the whole list
+	}
 	return map[string]any{"type": "object", "properties": props, "required": required}
 }
 
