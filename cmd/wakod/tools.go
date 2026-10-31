@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/hbroek/wako/internal/config"
@@ -167,4 +168,33 @@ func healthcheck(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// listSpaces implements "wakod spaces": which database file belongs to which space.
+func listSpaces(args []string) {
+	fs := flag.NewFlagSet("spaces", flag.ExitOnError)
+	dir := fs.String("data-dir", "./data", "directory holding wako.db")
+	fs.Parse(args)
+	st, err := store.Open(*dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer st.Close()
+	files, err := st.SpaceFiles()
+	if err != nil {
+		log.Fatal(err)
+	}
+	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "SPACE\tTITLE\tPAGES\tSIZE\tFILE")
+	for _, f := range files {
+		pages, size := fmt.Sprint(f.Pages), fmt.Sprintf("%.1f MB", float64(f.Size)/1e6)
+		if f.Missing {
+			pages, size = "-", "MISSING"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", f.Slug, f.Title, pages, size, f.File)
+	}
+	tw.Flush()
+	if fp, err := st.CheckFiles(); err == nil && len(fp.Orphans) > 0 {
+		fmt.Printf("\nfiles in spaces/ that no space owns: %s\n", strings.Join(fp.Orphans, ", "))
+	}
 }

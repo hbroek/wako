@@ -88,6 +88,7 @@ until the new one is up. Data is in the volume, so nothing is lost.
 | Container restarts, log says `unable to open database file` | `/data` is a bind mount owned by root; use a volume |
 | Log says a space's database file is missing | the volume was replaced or emptied; restore a backup, or `wakod forget-space SLUG` |
 | Uploads of large images or imports fail with 413 | a proxy limit; wako allows 25 MB images and 256 MB imports by default |
+| AI says `x509: certificate signed by unknown authority` | the image has no CA bundle (fixed in the Dockerfile); redeploy a build that includes it |
 | AI answers time out | the proxy's timeout is shorter than the model's; wako waits up to two minutes |
 
 To see the health check's view: `docker exec <container> /usr/local/bin/wakod healthcheck`.

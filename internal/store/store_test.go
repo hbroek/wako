@@ -627,6 +627,28 @@ func TestCheckFindsAndRepairsDamage(t *testing.T) {
 	if err != nil || len(fp.Missing) != 1 || !strings.HasPrefix(fp.Missing[0], "gone (") || len(fp.Orphans) != 1 || fp.Orphans[0] != "99.db" {
 		t.Fatalf("file problems: %+v %v", fp, err)
 	}
+	// The listing says which file is which, and does not recreate the missing one.
+	sf, err := st2.SpaceFiles()
+	if err != nil || len(sf) != 2 {
+		t.Fatalf("space files: %+v %v", sf, err)
+	}
+	for _, f := range sf {
+		switch f.Slug {
+		case "gone":
+			if !f.Missing || f.Pages != -1 || f.File != fmt.Sprintf("spaces/%d.db", gone.ID) {
+				t.Errorf("gone: %+v", f)
+			}
+		case "main":
+			if f.Missing || f.Pages < 1 || f.Size == 0 {
+				t.Errorf("main: %+v", f)
+			}
+		default:
+			t.Errorf("unexpected space %+v", f)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "spaces", fmt.Sprintf("%d.db", gone.ID))); err == nil {
+		t.Error("listing recreated a missing database")
+	}
 	rep, err = st2.Check(false, false)
 	if err != nil || !strings.Contains(strings.Join(rep.Problems, "\n"), "wakod forget-space") || !strings.Contains(strings.Join(rep.Problems, "\n"), "99.db") {
 		t.Errorf("check report: %+v %v", rep, err)

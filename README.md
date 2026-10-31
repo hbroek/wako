@@ -136,6 +136,7 @@ Step by step, for a private GitHub repository and the included `Dockerfile`: [`d
 
 | Command | What it does |
 |---|---|
+| `wakod spaces [-data-dir D]` | which database file (`spaces/3.db`) holds which space, with page count and size |
 | `wakod backup -data-dir D -to DIR` | consistent copy of every database while the server runs |
 | `wakod check [-deep] [-repair]` | integrity check; `-repair` rebuilds the search index and stored paths |
 | `wakod gc-assets` | remove pictures no page uses |

@@ -33,6 +33,9 @@ func main() {
 		case "reset-admin-password":
 			resetAdminPassword(os.Args[2:])
 			return
+		case "spaces":
+			listSpaces(os.Args[2:])
+			return
 		case "backup":
 			backup(os.Args[2:])
 			return

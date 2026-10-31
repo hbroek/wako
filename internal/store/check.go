@@ -220,3 +220,53 @@ func rewritePaths(db *sql.DB) error {
 	}
 	return tx.Commit()
 }
+
+// SpaceFile says which database file holds a space.
+type SpaceFile struct {
+	ID      int64
+	Slug    string
+	Title   string
+	File    string // relative to the data directory, e.g. spaces/3.db
+	Size    int64  // bytes of the database file
+	Pages   int    // -1 when the file is missing
+	Missing bool
+}
+
+// SpaceFiles lists every space with the file that holds it. Files are named by
+// the space's id, so this is the way to see which is which. A missing file is
+// reported, not created.
+func (s *Store) SpaceFiles() ([]SpaceFile, error) {
+	rows, err := s.catalog.Query(`SELECT id, slug, title FROM spaces ORDER BY slug`)
+	if err != nil {
+		return nil, err
+	}
+	var out []SpaceFile
+	for rows.Next() {
+		var f SpaceFile
+		if err := rows.Scan(&f.ID, &f.Slug, &f.Title); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	rows.Close()
+	for i := range out {
+		f := &out[i]
+		path := s.spacePath(f.ID)
+		f.File = filepath.Join("spaces", filepath.Base(path))
+		st, err := os.Stat(path)
+		if err != nil {
+			f.Missing, f.Pages = true, -1
+			continue
+		}
+		f.Size = st.Size()
+		db, err := s.attach(f.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := db.QueryRow(`SELECT count(*) FROM pages`).Scan(&f.Pages); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}

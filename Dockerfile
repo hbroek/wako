@@ -13,8 +13,10 @@ RUN for c in wakod wako; do \
         -o /out/$c ./cmd/$c || exit 1; done \
  && mkdir -p /out/data/spaces /out/tmp && chmod 1777 /out/tmp && chown -R 65532:65532 /out/data && chmod 700 /out/data
 
-# Nothing but the two programs: no shell, no libc, no package manager.
+# Nothing but the two programs and the CA bundle (the AI service is reached over
+# HTTPS, and without trusted roots every call fails with "unknown authority").
 FROM scratch
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/wakod /out/wako /usr/local/bin/
 COPY --from=build --chown=65532:65532 --chmod=0700 /out/data /data
 COPY --from=build /out/tmp /tmp
