@@ -28,8 +28,14 @@ type Server struct {
 	st   *store.Store
 	base string // URL prefix, "" or "/wiki"
 
+	resizeState // the client for /_resize and its test switches
+
 	SiteName string // shown in the header and page titles
-	LogoFile string // optional image file served as the logo and favicon
+
+	// ExternalResize is the server-wide switch for /_resize (pictures from other
+	// sites); each space has its own switch as well.
+	ExternalResize bool
+	LogoFile       string // optional image file served as the logo and favicon
 
 	MaxUpload   int64      // largest accepted upload in bytes; 0 means 25 MiB
 	ImageLimits img.Limits // what uploaded pictures are checked and shrunk to
@@ -55,7 +61,7 @@ type Server struct {
 // New returns a server for st. Set the exported fields before serving.
 func New(st *store.Store, basePath string) *Server {
 	work := make(chan struct{}, 2)
-	return &Server{st: st, base: basePath, SiteName: "Wako", ImageLimits: img.DefaultLimits,
+	return &Server{st: st, base: basePath, SiteName: "Wako", ImageLimits: img.DefaultLimits, ExternalResize: true,
 		work: work, variants: newVariantCache(64<<20, work)}
 }
 
@@ -72,6 +78,7 @@ func (s *Server) newData(r *http.Request, sp *store.Space, acc Access, cur, titl
 		Title: title, Base: s.base, SiteName: s.SiteName, HasLogo: s.LogoFile != "",
 		AssetV: assetVersion, Space: sp, Path: cur, CanWrite: acc.Write, CanSuggest: acc.Suggest && !acc.Write, CanEdit: acc.Write || acc.Suggest, IsAdmin: s.isAdmin(r), CanManage: acc.Admin, AuthOn: s.auth != nil,
 		AIOn: s.AI != nil && s.aiAllowed(r), AIAvailable: s.AI != nil,
+		ResizeAvailable: s.ExternalResize, ResizeOn: s.ExternalResize && sp != nil && sp.ExternalResize,
 	}
 	if p := s.principal(r); p != nil {
 		d.User = p.user.Name
@@ -126,6 +133,8 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.ui(w, r, "apple-touch-icon.png")
+	case first == "_resize" && rest == "":
+		s.resize(w, r)
 	case first == "_mcp" && rest == "":
 		s.mcpEndpoint(w, r)
 	case first == "_feed" && rest == "":
@@ -398,16 +407,17 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 }
 
 type spaceJSON struct {
-	Slug       string `json:"slug"`
-	Title      string `json:"title"`
-	PublicRead bool   `json:"public_read"`
-	AIEnabled  bool   `json:"ai_enabled"`
+	Slug           string `json:"slug"`
+	Title          string `json:"title"`
+	PublicRead     bool   `json:"public_read"`
+	AIEnabled      bool   `json:"ai_enabled"`
+	ExternalResize bool   `json:"external_resize"`
 }
 
 func spacesJSON(spaces []*store.Space) []spaceJSON {
 	out := make([]spaceJSON, 0, len(spaces))
 	for _, sp := range spaces {
-		out = append(out, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled})
+		out = append(out, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled, sp.ExternalResize})
 	}
 	return out
 }
@@ -419,6 +429,10 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 	}
 	if parts[0] == "ai" {
 		s.aiAPI(w, r, parts[1:])
+		return
+	}
+	if len(parts) == 2 && parts[0] == "resize" && parts[1] == "link" {
+		s.resizeLink(w, r)
 		return
 	}
 	switch {
@@ -452,7 +466,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 				return
 			}
 			w.Header().Set("Location", s.u(sp.Slug)+"/")
-			writeJSON(w, 201, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled})
+			writeJSON(w, 201, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled, sp.ExternalResize})
 		default:
 			w.Header().Set("Allow", "GET, POST")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -469,10 +483,11 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 			return
 		}
 		var in struct {
-			Slug       *string `json:"slug"`
-			Title      *string `json:"title"`
-			PublicRead *bool   `json:"public_read"`
-			AIEnabled  *bool   `json:"ai_enabled"`
+			Slug           *string `json:"slug"`
+			Title          *string `json:"title"`
+			PublicRead     *bool   `json:"public_read"`
+			AIEnabled      *bool   `json:"ai_enabled"`
+			ExternalResize *bool   `json:"external_resize"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(&in); err != nil {
 			http.Error(w, "bad JSON", http.StatusBadRequest)
@@ -483,7 +498,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 			s.deny(w, r)
 			return
 		}
-		sp, err := s.st.UpdateSpace(parts[1], store.SpaceUpdate{Slug: in.Slug, Title: in.Title, PublicRead: in.PublicRead, AIEnabled: in.AIEnabled})
+		sp, err := s.st.UpdateSpace(parts[1], store.SpaceUpdate{Slug: in.Slug, Title: in.Title, PublicRead: in.PublicRead, AIEnabled: in.AIEnabled, ExternalResize: in.ExternalResize})
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -497,7 +512,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 			}
 		}
 		w.Header().Set("Location", s.u(sp.Slug)+"/")
-		writeJSON(w, 200, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled})
+		writeJSON(w, 200, spaceJSON{sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled, sp.ExternalResize})
 	case len(parts) == 2 && parts[0] == "spaces" && r.Method == http.MethodDelete:
 		if cur, err := s.st.GetSpace(parts[1]); err != nil || !s.access(r, cur).Read {
 			http.NotFound(w, r)

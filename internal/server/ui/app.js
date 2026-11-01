@@ -588,6 +588,21 @@
       var size = dlg.open && sizeN.value ? '?' + sizeDim.value + '=' + sizeN.value : '';
       insertAtCursor('![' + label + '](' + name + size + ')\n');
     }
+    // A picture on another site: the server signs a /_resize address for it.
+    $('#web-add').addEventListener('click', function () {
+      var u = $('#web-url').value.trim(), msg = $('#web-msg');
+      if (!u) { msg.textContent = 'Paste the address of a picture first.'; return; }
+      var body = { img: u, space: space }; body[sizeN.value ? sizeDim.value : 'w'] = +(sizeN.value || 800);
+      msg.textContent = 'Checking…';
+      json('POST', base + '/_api/resize/link', body).then(function (r) {
+        return r.text().then(function (t) {
+          var res = {}; try { res = JSON.parse(t); } catch (e) {}
+          if (!r.ok) { msg.textContent = res.error || t || 'That did not work.'; return; }
+          insertAtCursor('![' + res.alt.replace(/[\[\]]/g, '') + '](' + res.url + ')\n');
+          msg.textContent = ''; $('#web-url').value = ''; dlg.close(); src.focus();
+        });
+      }, function () { msg.textContent = 'Network error.'; });
+    });
     function rememberSize() { try { localStorage.setItem('img-dim', sizeDim.value); localStorage.setItem('img-size', sizeN.value); } catch (e) {} }
     sizeDim.addEventListener('change', rememberSize); sizeN.addEventListener('change', rememberSize);
     function files(dt) {
@@ -769,6 +784,7 @@
   function spaceBody(f) {
     var o = { title: f.title.value.trim(), slug: f.slug.value.trim(), public_read: f.public.checked };
     if (f.ai) o.ai_enabled = f.ai.checked;
+    if (f.resize) o.external_resize = f.resize.checked;
     return o;
   }
   var nf = $('#space-new');

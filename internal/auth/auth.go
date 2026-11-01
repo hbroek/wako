@@ -135,6 +135,19 @@ func (s *Signer) mac(data string) []byte {
 	return h.Sum(nil)
 }
 
+// Tag returns a short signature over data for one purpose, such as "resize".
+// It cannot be mistaken for an access token, which signs a different kind of text.
+func (s *Signer) Tag(purpose, data string) string {
+	return base64.RawURLEncoding.EncodeToString(s.mac("tag|" + purpose + "|" + data)[:16])
+}
+
+// CheckTag reports whether tag is the signature Tag gives for purpose and data.
+func (s *Signer) CheckTag(purpose, data, tag string) bool {
+	want, err1 := base64.RawURLEncoding.DecodeString(s.Tag(purpose, data))
+	got, err2 := base64.RawURLEncoding.DecodeString(tag)
+	return err1 == nil && err2 == nil && hmac.Equal(got, want)
+}
+
 // Sign returns an access token for user uid in session sid, valid until exp.
 func (s *Signer) Sign(uid, sid int64, exp time.Time) string {
 	payload := fmt.Sprintf("a1|%d|%d|%d", uid, sid, exp.Unix())

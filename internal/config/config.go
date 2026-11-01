@@ -24,12 +24,13 @@ type Config struct {
 	ImageMode string // "compact" or "original"
 	Quota     int64  // media quota per space in MiB; negative means unlimited
 
-	AdminUser     string        // name of the administrator created on first start
-	AdminPassword string        // its password; generated and printed once if empty
-	DisableAuth   bool          // no sign-in: everyone is an administrator
-	AllowInsecure bool          // cookies over plain HTTP on any host
-	AccessTTL     time.Duration // lifetime of an access token
-	RefreshTTL    time.Duration // how long a session lasts without use
+	AdminUser      string        // name of the administrator created on first start
+	AdminPassword  string        // its password; generated and printed once if empty
+	DisableAuth    bool          // no sign-in: everyone is an administrator
+	AllowInsecure  bool          // cookies over plain HTTP on any host
+	ExternalResize bool          // /_resize may fetch and resize pictures from other sites
+	AccessTTL      time.Duration // lifetime of an access token
+	RefreshTTL     time.Duration // how long a session lasts without use
 
 	RevisionWindow time.Duration // saves by one author closer together than this are one revision
 	RevisionKeep   int           // revisions kept per page; 0 keeps them all
@@ -118,6 +119,7 @@ func Parse(args []string) (*Config, error) {
 	fs.IntVar(&c.RevisionKeep, "keep-revisions", int(envSigned("WAKO_KEEP_REVISIONS", 100)), "revisions kept per page (0 keeps all)")
 	fs.StringVar(&c.LogFormat, "log-format", env("WAKO_LOG_FORMAT", "text"), `log lines as "text" or "json"`)
 	fs.StringVar(&c.LogLevel, "log-level", env("WAKO_LOG_LEVEL", "info"), "debug, info, warn or error")
+	fs.BoolVar(&c.ExternalResize, "external-resize", env("WAKO_EXTERNAL_RESIZE", "true") != "false", "let pages show resized copies of pictures from other sites (/_resize); spaces can still switch it off")
 	fs.BoolVar(&c.AccessLog, "access-log", env("WAKO_ACCESS_LOG", "true") != "false", "log one line per request")
 	fs.StringVar(&c.TrustedProxies, "trusted-proxies", env("WAKO_TRUSTED_PROXIES", ""), "networks whose X-Forwarded-For/-Proto/-Host headers are believed, e.g. 10.0.0.0/8 (default: this machine only)")
 	hosts := env("WAKO_ALLOWED_HOSTS", "")

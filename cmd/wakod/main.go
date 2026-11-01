@@ -140,6 +140,7 @@ func serve(cfg *config.Config) int {
 		MaxPixels: int(cfg.MaxMpix) * 1_000_000, MaxSide: cfg.MaxSide, MaxStored: int(cfg.MaxStored) << 20,
 		MaxFrames: img.DefaultLimits.MaxFrames, Mode: img.Compact,
 	}
+	wiki.ExternalResize = cfg.ExternalResize
 	if cfg.ImageMode == "original" {
 		wiki.ImageLimits.Mode = img.Original
 	}

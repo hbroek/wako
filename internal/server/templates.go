@@ -25,60 +25,62 @@ type treeCtx struct {
 }
 
 type pageData struct {
-	Title       string
-	Base        string
-	SiteName    string
-	HasLogo     bool
-	AssetV      string
-	Space       *store.Space
-	SpaceList   []*store.Space
-	Spaces      []*store.Space
-	Path        string
-	PageURL     string
-	ParentURL   string
-	MDURL       string
-	Version     int64
-	Mode        string // "edit", "create" or "new"
-	Source      string
-	Body        template.HTML
-	Print       bool // ?print: the page and everything below it as one document
-	Crumbs      []link
-	Children    []link
-	Tree        treeCtx
-	CanWrite    bool
-	CanEdit     bool   // may edit, or at least suggest an edit
-	IsAdmin     bool   // server administrator
-	CanManage   bool   // administrator of this space
-	AuthOn      bool   // sign-in is enabled
-	User        string // signed-in user's name
-	Next        string // where to go after signing in
-	HasKids     bool
-	Assets      []assetView
-	Query       string
-	Usage       string
-	Hits        []hitView
-	Rev         *revBanner
-	Revs        []revRow
-	DiffHTML    template.HTML
-	DiffAgainst int64
-	HistoryURL  string
-	Changes     []changeRow
-	FeedURL     string
-	FeedTitle   string
-	SearchSpace string
-	Broken      []brokenLink
-	Proposals   []proposalRow
-	Proposal    *proposalRow
-	Pending     int // suggestions waiting for review (shown to reviewers)
-	CanSuggest  bool
-	CanReview   bool
-	CanWithdraw bool
-	Stale       bool // the page changed since the suggestion was written
-	Decision    string
-	DecidedBy   string
-	DecidedAt   string
-	AIOn        bool // a model is configured (and the caller may use it)
-	AIAvailable bool // ... and settings may offer the switch
+	Title           string
+	Base            string
+	SiteName        string
+	HasLogo         bool
+	AssetV          string
+	Space           *store.Space
+	SpaceList       []*store.Space
+	Spaces          []*store.Space
+	Path            string
+	PageURL         string
+	ParentURL       string
+	MDURL           string
+	Version         int64
+	Mode            string // "edit", "create" or "new"
+	Source          string
+	Body            template.HTML
+	Print           bool // ?print: the page and everything below it as one document
+	Crumbs          []link
+	Children        []link
+	Tree            treeCtx
+	CanWrite        bool
+	CanEdit         bool   // may edit, or at least suggest an edit
+	IsAdmin         bool   // server administrator
+	CanManage       bool   // administrator of this space
+	AuthOn          bool   // sign-in is enabled
+	User            string // signed-in user's name
+	Next            string // where to go after signing in
+	HasKids         bool
+	Assets          []assetView
+	Query           string
+	Usage           string
+	Hits            []hitView
+	Rev             *revBanner
+	Revs            []revRow
+	DiffHTML        template.HTML
+	DiffAgainst     int64
+	HistoryURL      string
+	Changes         []changeRow
+	FeedURL         string
+	FeedTitle       string
+	SearchSpace     string
+	Broken          []brokenLink
+	Proposals       []proposalRow
+	Proposal        *proposalRow
+	Pending         int // suggestions waiting for review (shown to reviewers)
+	CanSuggest      bool
+	CanReview       bool
+	CanWithdraw     bool
+	Stale           bool // the page changed since the suggestion was written
+	Decision        string
+	DecidedBy       string
+	DecidedAt       string
+	AIOn            bool // a model is configured (and the caller may use it)
+	AIAvailable     bool // ... and settings may offer the switch
+	ResizeAvailable bool // the server allows /_resize, so settings may offer the switch
+	ResizeOn        bool // ... and this space has it on, so the editor may offer it
 }
 
 // hitView is a search result for the HTML page. The HTML fields were escaped

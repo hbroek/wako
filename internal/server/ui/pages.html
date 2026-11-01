@@ -98,6 +98,7 @@
 <tr><td><code>**bold**</code> <code>*italic*</code> <code>~~strike~~</code> <code>`code`</code></td><td>emphasis</td></tr>
 <tr><td><code>[text](other-page)</code> <code>[text](https://example.com)</code></td><td>links (a bare https://… is linked too)</td></tr>
 <tr><td><code>[[Page name]]</code> <code>[[Page name|label]]</code></td><td>shortcut: becomes a link when you save, and creates the page if it is new</td></tr>
+<tr><td><code>![alt](/_resize?w=60&amp;img=…)</code></td><td>a resized copy of a picture on another site (paste its address in Image / PDF…, which makes the link)</td></tr>
 <tr><td><code>[manual](manual.pdf)</code></td><td>a link to a PDF in the library (Image / PDF… button)</td></tr>
 <tr><td><code>![alt](picture.png)</code> <code>![alt](picture.png?w=400)</code> <code>?h=300</code></td><td>an image from the library (Image… button), optionally this many pixels wide or high (60 for a thumbnail, 240, 400, 600, 800, 1200, 1600)</td></tr>
 <tr><td><code>- item</code> <code>1. item</code> (indent two spaces to nest)</td><td>bulleted and numbered lists</td></tr>
@@ -116,8 +117,10 @@
 <button value="cancel">Close</button></div>
 <div class="media-bar"><label class="hint">Show it <select id="media-dim" aria-label="Measure the size by"><option value="w">this wide</option><option value="h">this high</option></select>
 <select id="media-size" aria-label="Size in pixels"><option value="">at the default size</option><option value="60">60 (thumbnail)</option><option>240</option><option>400</option><option>600</option><option>800</option><option>1200</option><option>1600</option></select> px</label></div>
+{{if .ResizeOn}}<div class="media-bar"><input type="url" id="web-url" placeholder="Or a picture on another site: https://example.com/photo.jpg" autocomplete="off" aria-label="Address of a picture on another site"><button type="button" id="web-add" title="Insert a resized copy of that picture, made by this server (the size above; 800 wide if none is chosen)">Insert resized</button></div>
+<p class="hint" id="web-msg" role="status"></p>{{end}}
 <div id="media-grid" class="grid"></div>
-<p class="hint">Choosing a PDF inserts a link, <code>[name](name.pdf)</code>. Choosing an image inserts <code>![alt](name)</code>, or <code>![alt](name?w=400)</code> with a size. The server makes the smaller picture when it is first asked for, and keeps it. The page keeps a link to the image by name.</p>
+<p class="hint">Choosing a PDF inserts a link, <code>[name](name.pdf)</code>. Choosing an image inserts <code>![alt](name)</code>, or <code>![alt](name?w=400)</code> with a size. The server makes the smaller picture when it is first asked for, and keeps it. The page keeps a link to the image by name. A picture from another site goes in as <code>![alt](/_resize?…)</code>: the server fetches it, keeps only the resized copy for a day, and the signature stops others using this server as a proxy. Only JPEG and PNG, up to 10 MB.</p>
 </form></dialog>
 {{template "bottom" .}}{{end}}
 
@@ -150,6 +153,7 @@
 <label>Title <input type="text" name="title" value="{{.Space.Title}}" required></label>
 <label>Slug <input type="text" name="slug" value="{{.Space.Slug}}" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*"></label>
 <label><input type="checkbox" name="public" {{if .Space.PublicRead}}checked{{end}}> Anyone may read (anonymous read-only access)</label>
+{{if .ResizeAvailable}}<label><input type="checkbox" name="resize" {{if .Space.ExternalResize}}checked{{end}}> Allow pictures from other sites, shown as resized copies made by this server (<code>/_resize</code>). Turning it off breaks those pictures in this space's pages.</label>{{else}}<p class="hint">Resizing pictures from other sites is switched off for the whole server (<code>-external-resize=false</code>).</p>{{end}}
 {{if and .IsAdmin .AIAvailable}}<label><input type="checkbox" name="ai" {{if .Space.AIEnabled}}checked{{end}}> Allow the AI features here (“Ask the wiki”, page drafts). The text of pages in this space is sent to the configured AI service.</label>{{end}}
 <button class="primary">Save</button> <span id="msg" role="status"></span>
 </form>

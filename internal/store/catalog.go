@@ -35,12 +35,13 @@ type Store struct {
 
 // Space is one wiki. Page operations act on the space's own database.
 type Space struct {
-	ID         int64
-	Slug       string
-	Title      string
-	PublicRead bool
-	AIEnabled  bool // the AI features (ask, draft) may use this space's pages
-	CreatedAt  time.Time
+	ID             int64
+	Slug           string
+	Title          string
+	PublicRead     bool
+	AIEnabled      bool // the AI features (ask, draft) may use this space's pages
+	ExternalResize bool // pages may show resized copies of pictures from other sites (/_resize)
+	CreatedAt      time.Time
 
 	db    *sql.DB
 	quota int64
@@ -110,6 +111,8 @@ var catalogMigrations = []string{
 	CREATE INDEX space_members_user ON space_members(user_id);
 	ALTER TABLE api_tokens ADD COLUMN suggest_only INTEGER NOT NULL DEFAULT 0;
 	ALTER TABLE spaces ADD COLUMN ai_enabled INTEGER NOT NULL DEFAULT 0;`,
+	// A per-space switch for resized copies of pictures from other sites.
+	`ALTER TABLE spaces ADD COLUMN external_resize INTEGER NOT NULL DEFAULT 1;`,
 }
 
 // Open opens the catalog at dir/wako.db; spaces live under dir/spaces/.
@@ -178,13 +181,13 @@ func (s *Store) CreateSpace(slug, title string, publicRead bool) (*Space, error)
 		s.catalog.Exec(`DELETE FROM spaces WHERE id = ?`, id)
 		return nil, err
 	}
-	return &Space{ID: id, Slug: slug, Title: title, PublicRead: publicRead, CreatedAt: now, db: db, quota: s.Quota, st: s}, nil
+	return &Space{ID: id, Slug: slug, Title: title, PublicRead: publicRead, ExternalResize: true, CreatedAt: now, db: db, quota: s.Quota, st: s}, nil
 }
 
 func (s *Store) scanSpace(sc interface{ Scan(...any) error }) (*Space, error) {
 	var sp Space
 	var ts int64
-	if err := sc.Scan(&sp.ID, &sp.Slug, &sp.Title, &sp.PublicRead, &ts, &sp.AIEnabled); err != nil {
+	if err := sc.Scan(&sp.ID, &sp.Slug, &sp.Title, &sp.PublicRead, &ts, &sp.AIEnabled, &sp.ExternalResize); err != nil {
 		return nil, err
 	}
 	sp.CreatedAt = time.Unix(ts, 0)
@@ -198,7 +201,7 @@ func (s *Store) scanSpace(sc interface{ Scan(...any) error }) (*Space, error) {
 
 func (s *Store) GetSpace(slug string) (*Space, error) {
 	sp, err := s.scanSpace(s.catalog.QueryRow(
-		`SELECT id, slug, title, public_read, created_at, ai_enabled FROM spaces WHERE slug = ?`, slug))
+		`SELECT id, slug, title, public_read, created_at, ai_enabled, external_resize FROM spaces WHERE slug = ?`, slug))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -206,7 +209,7 @@ func (s *Store) GetSpace(slug string) (*Space, error) {
 }
 
 func (s *Store) ListSpaces() ([]*Space, error) {
-	rows, err := s.catalog.Query(`SELECT id, slug, title, public_read, created_at, ai_enabled FROM spaces ORDER BY slug`)
+	rows, err := s.catalog.Query(`SELECT id, slug, title, public_read, created_at, ai_enabled, external_resize FROM spaces ORDER BY slug`)
 	if err != nil {
 		return nil, err
 	}
@@ -250,10 +253,11 @@ func (s *Store) DeleteSpace(slug string) error {
 
 // SpaceUpdate lists the fields UpdateSpace changes; nil fields stay as they are.
 type SpaceUpdate struct {
-	Slug       *string
-	Title      *string
-	PublicRead *bool
-	AIEnabled  *bool
+	Slug           *string
+	Title          *string
+	PublicRead     *bool
+	AIEnabled      *bool
+	ExternalResize *bool
 }
 
 // UpdateSpace changes a space's slug, title or visibility. The database file is
@@ -281,8 +285,11 @@ func (s *Store) UpdateSpace(slug string, u SpaceUpdate) (*Space, error) {
 	if u.AIEnabled != nil {
 		sp.AIEnabled = *u.AIEnabled
 	}
-	if _, err := s.catalog.Exec(`UPDATE spaces SET slug = ?, title = ?, public_read = ?, ai_enabled = ? WHERE id = ?`,
-		sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled, sp.ID); err != nil {
+	if u.ExternalResize != nil {
+		sp.ExternalResize = *u.ExternalResize
+	}
+	if _, err := s.catalog.Exec(`UPDATE spaces SET slug = ?, title = ?, public_read = ?, ai_enabled = ?, external_resize = ? WHERE id = ?`,
+		sp.Slug, sp.Title, sp.PublicRead, sp.AIEnabled, sp.ExternalResize, sp.ID); err != nil {
 		if isUnique(err) {
 			return nil, ErrExists
 		}

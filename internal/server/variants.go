@@ -34,16 +34,21 @@ func validSize(n int) bool {
 // limitFor turns "n pixels wide" (dim 'w'), "n pixels high" ('h') or "longest
 // side n" ('s') into a longest-side limit for this asset, or 0 when its size is unknown.
 func limitFor(a *store.AssetInfo, dim byte, n int) int {
-	long := a.Width
-	if a.Height > long {
-		long = a.Height
+	return limitForSize(a.Width, a.Height, dim, n)
+}
+
+// limitForSize is limitFor for a picture of w by h pixels.
+func limitForSize(w, h int, dim byte, n int) int {
+	long := w
+	if h > long {
+		long = h
 	}
 	base := long
 	switch dim {
 	case 'w':
-		base = a.Width
+		base = w
 	case 'h':
-		base = a.Height
+		base = h
 	}
 	if base <= 0 || long <= 0 {
 		return 0
