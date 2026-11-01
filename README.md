@@ -7,7 +7,8 @@ A wiki that stores plain, portable Markdown in SQLite. One static program, no ru
 - **Markdown in, Markdown out.** `GET` with `Accept: text/markdown` (or a `.md` suffix) returns the text you wrote; a browser gets HTML. `PUT`, `POST`, `PATCH`, `DELETE` do what you expect.
 - **GitHub Flavored Markdown, nothing more.** CommonMark plus tables, strikethrough, task lists (shown as ✅ and ⬜) and bare-URL autolinks. No footnotes, no raw HTML. Typing `[[Page name]]` (or `[[Page name|label]]`) is a shortcut: when you save, it becomes an ordinary link, `[Page name](page-name)`, to the page with that title or name, or to a new page beside this one, which is created for you. Your pages read the same in any Markdown viewer.
 - **Spaces.** Many independent wikis on one server, each with its own SQLite file, members and anonymous read-only switch.
-- **Images** live in a per-space media library. Pages say `![alt](name.png)`; the server serves the picture next to the page, strips metadata, shrinks large ones and makes `?w=800` / `?w=240` variants.
+- **Images** live in a per-space media library. Pages say `![alt](name.png)`; the server serves the picture next to the page, strips metadata, shrinks large ones and makes smaller copies on request. A page can say how big to show a picture: `![alt](name.jpg?w=400)` is 400 pixels wide and `![alt](name.jpg?h=300)` 300 high, with 60 (a thumbnail), 240, 400, 600, 800, 1200 or 1600 allowed (the **Image…** button in the editor has a size picker). The server builds the copy when it is first asked for and keeps it in memory; without a size, large JPEG and PNG pictures show at up to 800 pixels and link to the full-size file.
+- **PDF attachments.** The media library also keeps PDF files. Upload one (or drop it on the editor), and **Image / PDF…** inserts a link, `[manual](manual.pdf)`, that opens the file. PDFs follow the same size limits as images (`-max-upload-mb`, and `-max-stored-mb`, 5 MiB by default) and are stored exactly as uploaded: wako checks the type and the size, does not read or change the file, and does not show it inside a page. They are listed, renamed and deleted in the same library page, and travel in exports and imports like images.
 - **History** with diffs, restore, conflict-safe saves, search, backlinks, a broken-link report and RSS feeds of changes.
 - **Suggestions.** People (and programs) who may only suggest queue changes for an editor to review: a diff, accept or reject, credit to the author.
 - **AI, on your terms.** Any assistant can read and edit the wiki through MCP; you can ask the wiki questions and have pages drafted. Everything an assistant writes can wait for a person to approve it.
@@ -60,7 +61,7 @@ Every flag can also be set as an environment variable (`-data-dir` is `WAKO_DATA
 | `-trusted-proxies` | networks whose `X-Forwarded-*` headers are believed |
 | `-tls-cert`, `-tls-key` | serve HTTPS directly |
 | `-log-format`, `-log-level`, `-access-log` | `text` or `json` logs, verbosity, one line per request |
-| `-max-upload-mb`, `-max-stored-mb`, `-max-import-mb` | size limits |
+| `-max-upload-mb`, `-max-stored-mb`, `-max-import-mb` | size limits: the largest upload, the largest image or PDF kept, the largest import |
 | `-image-mode`, `-image-max-side`, `-image-max-mpix` | `compact` or `original`, and picture limits |
 | `-space-quota-mb` | media quota per space |
 | `-revision-window`, `-keep-revisions` | how saves are merged into revisions and how many are kept |

@@ -78,12 +78,47 @@ type Image struct {
 	Width, Height int    // pixel size of Src; 0 when unknown
 }
 
-// Resolver maps a bare image name to how it should be shown.
-type Resolver func(name string) (Image, bool)
+// Size is the size a page asks for with a suffix on the image name:
+// "photo.jpg?w=400" is 400 pixels wide, "photo.jpg?h=300" 300 pixels high. At
+// most one of the two is set; both are 0 when the name has no suffix.
+type Size struct{ W, H int }
 
-// bareName matches a reference that is just a library file name: no scheme,
-// no directory, nothing that is a path or URL in its own right.
-var bareName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+// fileLinkName reports whether a link destination is the bare name of a PDF
+// attachment in the library, such as "manual.pdf". Such a link goes to the file,
+// never to a page.
+func fileLinkName(d []byte) (string, bool) {
+	if !pdfName.Match(d) {
+		return "", false
+	}
+	return string(d), true
+}
+
+var pdfName = regexp.MustCompile(`(?i)^[A-Za-z0-9][A-Za-z0-9._-]*\.pdf$`)
+
+// Resolver maps a bare image name, and the size asked for, to how it should be shown.
+type Resolver func(name string, size Size) (Image, bool)
+
+// imageDest matches a reference that is just a library file name, with an
+// optional size suffix: no scheme, no directory, nothing that is a path or URL
+// in its own right.
+var imageDest = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\?([wh])=([0-9]{2,4}))?$`)
+
+// parseImageDest splits "photo.jpg?w=400" into the name and the size.
+func parseImageDest(d []byte) (name string, size Size, ok bool) {
+	m := imageDest.FindSubmatch(d)
+	if m == nil {
+		return "", Size{}, false
+	}
+	if len(m[2]) > 0 {
+		n, _ := strconv.Atoi(string(m[3]))
+		if m[2][0] == 'w' {
+			size.W = n
+		} else {
+			size.H = n
+		}
+	}
+	return string(m[1]), size, true
+}
 
 // Options tell Render how to resolve what a page refers to.
 type Options struct {
@@ -125,14 +160,24 @@ func Render(src string, o Options) (string, error) {
 	var wraps []wrap
 	n := 0
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if l, ok := node.(*ast.Link); ok && entering && o.Links != nil {
-			// A link to a page that does not exist gets a class, so it can be styled.
-			d := string(l.Destination)
-			if !externalRe.MatchString(d) {
-				if internal, exists := o.Links(strings.SplitN(strings.SplitN(d, "#", 2)[0], "?", 2)[0]); internal && !exists {
-					l.SetAttributeString("class", []byte("missing"))
-					if len(l.Title) == 0 {
-						l.Title = []byte("This page does not exist yet")
+		if l, ok := node.(*ast.Link); ok && entering {
+			if name, isFile := fileLinkName(l.Destination); isFile {
+				if resolve != nil {
+					if im, ok := resolve(name, Size{}); ok {
+						l.Destination = []byte(im.Src)
+					}
+				}
+				return ast.WalkContinue, nil // an attachment, not a page
+			}
+			if o.Links != nil {
+				// A link to a page that does not exist gets a class, so it can be styled.
+				d := string(l.Destination)
+				if !externalRe.MatchString(d) {
+					if internal, exists := o.Links(strings.SplitN(strings.SplitN(d, "#", 2)[0], "?", 2)[0]); internal && !exists {
+						l.SetAttributeString("class", []byte("missing"))
+						if len(l.Title) == 0 {
+							l.Title = []byte("This page does not exist yet")
+						}
 					}
 				}
 			}
@@ -144,8 +189,8 @@ func Render(src string, o Options) (string, error) {
 		}
 		first := n == 0
 		n++
-		if resolve != nil && bareName.Match(img.Destination) {
-			if im, ok := resolve(string(img.Destination)); ok {
+		if name, size, isName := parseImageDest(img.Destination); resolve != nil && isName {
+			if im, ok := resolve(name, size); ok {
 				img.Destination = []byte(im.Src)
 				if im.Width > 0 && im.Height > 0 {
 					img.SetAttributeString("width", []byte(strconv.Itoa(im.Width)))
@@ -177,7 +222,8 @@ func Render(src string, o Options) (string, error) {
 	return policy.Sanitize(buf.String()), nil
 }
 
-// ImageRefs returns the bare image names src refers to, in order of first use.
+// ImageRefs returns the bare library names src refers to, in order of first use:
+// images, and PDF attachments linked as [text](name.pdf).
 // Images inside code blocks or code spans are not references.
 func ImageRefs(src string) []string {
 	b := []byte(src)
@@ -185,8 +231,17 @@ func ImageRefs(src string) []string {
 	seen := map[string]bool{}
 	var out []string
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if img, ok := n.(*ast.Image); ok && entering && bareName.Match(img.Destination) {
-			if name := string(img.Destination); !seen[name] {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch n := n.(type) {
+		case *ast.Image:
+			if name, _, isName := parseImageDest(n.Destination); isName && !seen[name] {
+				seen[name] = true
+				out = append(out, name)
+			}
+		case *ast.Link:
+			if name, isFile := fileLinkName(n.Destination); isFile && !seen[name] {
 				seen[name] = true
 				out = append(out, name)
 			}
@@ -286,12 +341,19 @@ func ImageDests(src string) []string {
 	seen := map[string]bool{}
 	var out []string
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if img, ok := n.(*ast.Image); ok && entering {
-			d := string(img.Destination)
-			if d != "" && !externalRe.MatchString(d) && !strings.HasPrefix(d, "/") && !seen[d] {
-				seen[d] = true
-				out = append(out, d)
+		var d string
+		switch n := n.(type) {
+		case *ast.Image:
+			d = string(n.Destination)
+		case *ast.Link:
+			d = string(n.Destination)
+			if base, _, _ := strings.Cut(strings.SplitN(d, "#", 2)[0], "?"); !strings.HasSuffix(strings.ToLower(base), ".pdf") {
+				d = "" // only links to PDF files are attachments
 			}
+		}
+		if entering && d != "" && !externalRe.MatchString(d) && !strings.HasPrefix(d, "/") && !seen[d] {
+			seen[d] = true
+			out = append(out, d)
 		}
 		return ast.WalkContinue, nil
 	})
@@ -326,8 +388,9 @@ func rewriteImage(src, oldName, newName string, refs func(string) []string) (str
 
 	old := regexp.QuoteMeta(oldName)
 	title := `(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?`
-	inline := regexp.MustCompile(`(!\[(?:[^\[\]\\]|\\.|\[[^\]]*\])*\]\([ \t]*<?)(` + old + `)(>?` + title + `[ \t]*\))`)
-	def := regexp.MustCompile(`(?m)(^ {0,3}\[[^\]]+\]:[ \t]*<?)(` + old + `)(>?` + title + `[ \t]*$)`)
+	size := `(?:\?[wh]=[0-9]{2,4})?`
+	inline := regexp.MustCompile(`(!?\[(?:[^\[\]\\]|\\.|\[[^\]]*\])*\]\([ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*\))`)
+	def := regexp.MustCompile(`(?m)(^ {0,3}\[[^\]]+\]:[ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*$)`)
 
 	type edit struct{ start, stop int }
 	var edits []edit

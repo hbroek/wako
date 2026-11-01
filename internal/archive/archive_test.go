@@ -855,3 +855,58 @@ func FuzzImport(f *testing.F) {
 		walk(tr)
 	})
 }
+
+func TestSizedImageReferencesSurviveARoundTrip(t *testing.T) {
+	e := newEnv(t)
+	a, b := e.space("source"), e.space("copy")
+	addImage(t, a, "shot.png", pngOf(t, 10))
+	addImage(t, a, "photo.jpg", jpegOf(t, 60))
+	put(t, a, "ops", "# Ops\n\n![a](shot.png?w=400) ![b](photo.jpg?h=240) ![c](shot.png)\n")
+
+	zr, _ := exportZip(t, a)
+	if got := string(read(t, entries(zr)["ops.md"])); got != "# Ops\n\n![a](shot.png?w=400) ![b](photo.jpg?h=240) ![c](shot.png)\n" {
+		t.Errorf("the export changed the sizes: %q", got)
+	}
+	rep, err := Import(zr, b, Options{By: "bob"})
+	if err != nil || len(rep.Warnings) != 0 || rep.ImagesAdded != 2 {
+		t.Fatalf("import: %+v %v", rep, err)
+	}
+	if got, want := snapshot(t, b), snapshot(t, a); got != want {
+		t.Fatalf("the copy differs:\n--- copy\n%s--- original\n%s", got, want)
+	}
+}
+
+func TestPDFAttachmentsRoundTrip(t *testing.T) {
+	e := newEnv(t)
+	a, b := e.space("source"), e.space("copy")
+	pdf := []byte("%PDF-1.4\n1 0 obj\n<< >>\nendobj\n%%EOF\n")
+	addImage(t, a, "shot.png", pngOf(t, 10))
+	addImage(t, a, "manual.pdf", pdf)
+	put(t, a, "docs", "# Docs\n")
+	put(t, a, "docs/guide", "# Guide\n\n[Manual](manual.pdf) and ![shot](shot.png)\n")
+
+	zr, _ := exportZip(t, a)
+	z := entries(zr)
+	if f, ok := z["docs/manual.pdf"]; !ok || !bytes.Equal(read(t, f), pdf) {
+		t.Fatalf("the PDF is not next to its page: %s", names(zr))
+	}
+	rep, err := Import(zr, b, Options{By: "bob"})
+	if err != nil || len(rep.Warnings) != 0 || rep.ImagesAdded != 2 {
+		t.Fatalf("import: %+v %v", rep, err)
+	}
+	if got, want := snapshot(t, b), snapshot(t, a); got != want {
+		t.Fatalf("the copy differs:\n--- copy\n%s--- original\n%s", got, want)
+	}
+
+	// A plain Markdown folder with a relative link to a PDF binds it too.
+	c := e.space("plain")
+	zr2 := makeZip(t, map[string][]byte{"a.md": []byte("# A\n\n[Spec](files/spec.pdf)\n"), "files/spec.pdf": pdf})
+	rep, err = Import(zr2, c, Options{By: "bob"})
+	if err != nil || rep.ImagesAdded != 1 {
+		t.Fatalf("plain import: %+v %v", rep, err)
+	}
+	p, _ := c.GetPage("a")
+	if p == nil || !strings.Contains(p.Body, "[Spec](spec.pdf)") {
+		t.Errorf("the link to the PDF: %+v", p)
+	}
+}

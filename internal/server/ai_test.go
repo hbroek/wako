@@ -506,4 +506,22 @@ func TestEditorHasCheatsheetAndFocusMode(t *testing.T) {
 	if !strings.Contains(page, `id="focus-btn"`) {
 		t.Error("no focus button")
 	}
+	if !strings.Contains(page, `id="media-size"`) || !strings.Contains(page, `id="media-dim"`) {
+		t.Error("the image dialog has no size picker")
+	}
+}
+
+func TestMissingPageKeepsItsStylesAndCrumbs(t *testing.T) {
+	e := newPropEnv(t)
+	e.do("PUT", "/main/docs/a", "# A\n", e.mdT, e.ed)
+	r := e.do("GET", "/main/docs/gone", "", e.ed, header("Accept", "text/html"))
+	if r.Code != 404 {
+		t.Fatalf("status %d", r.Code)
+	}
+	if csp := r.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "style-src 'self'") {
+		t.Errorf("the page cannot load its stylesheet: CSP %q", csp)
+	}
+	if body := r.Body.String(); strings.Contains(body, "main//") || !strings.Contains(body, `href="/main/docs/gone"`) {
+		t.Errorf("crumbs: %s", body)
+	}
 }

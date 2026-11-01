@@ -141,7 +141,7 @@ func (s *Server) getPage(w http.ResponseWriter, r *http.Request, sp *store.Space
 			err = store.ErrNotFound
 		}
 		if err != nil {
-			if errors.Is(err, store.ErrNotFound) && store.IsImageName(path) {
+			if errors.Is(err, store.ErrNotFound) && store.IsAssetName(path) {
 				// An image used by a page in this directory is served here, next to
 				// the page, exactly where a relative ![alt](name) in its Markdown
 				// points, although only one copy is stored.
@@ -323,7 +323,7 @@ func (s *Server) crumbs(sp *store.Space, path string) []link {
 		if seg == "" {
 			continue
 		}
-		acc += "/" + seg
+		acc = strings.TrimPrefix(acc+"/"+seg, "/")
 		out = append(out, link{Title: seg, URL: s.u(sp.Slug, acc)})
 	}
 	return out
@@ -511,7 +511,7 @@ func (s *Server) missingPage(w http.ResponseWriter, r *http.Request, sp *store.S
 // use only their own bindings; with fallback (live preview of unsaved text) a
 // name the page has not bound yet is looked up in the library.
 func (s *Server) resolver(sp *store.Space, bound map[string]*store.AssetInfo, fallback bool) render.Resolver {
-	return func(name string) (render.Image, bool) {
+	return func(name string, size render.Size) (render.Image, bool) {
 		a, ok := bound[name]
 		if !ok && fallback {
 			if found, err := sp.FindAssetByName(name); err == nil {
@@ -521,18 +521,36 @@ func (s *Server) resolver(sp *store.Space, bound map[string]*store.AssetInfo, fa
 		if !ok {
 			return render.Image{}, false
 		}
-		return s.pageImage(sp, a), true
+		if a.Mime == "application/pdf" { // an attachment: just where it is
+			return render.Image{Src: s.assetURL(sp, a.ID, a.Name)}, true
+		}
+		return s.pageImage(sp, a, size), true
 	}
 }
 
 // pageImage chooses what a page shows for an asset: the original, or, for a
-// large JPEG or PNG, the 800 px copy linked to the original. Width and height
+// large JPEG or PNG, a smaller copy linked to the original. The copy is 800 px on
+// its longest side, or the width or height the page asked for. Width and height
 // are those of what is shown, so the browser reserves the right space.
-func (s *Server) pageImage(sp *store.Space, a *store.AssetInfo) render.Image {
+func (s *Server) pageImage(sp *store.Space, a *store.AssetInfo, size render.Size) render.Image {
 	full := s.assetURL(sp, a.ID, a.Name)
-	if scalable(a, widthContent) {
-		w, h := img.Fitted(a.Width, a.Height, widthContent)
-		return render.Image{Src: full + "?w=" + strconv.Itoa(widthContent), Link: full, Width: w, Height: h}
+	dim, n := byte('s'), widthContent
+	switch {
+	case size.W > 0 && validSize(size.W):
+		dim, n = 'w', size.W
+	case size.H > 0 && validSize(size.H):
+		dim, n = 'h', size.H
+	}
+	limit := limitFor(a, dim, n)
+	if scalable(a, limit, minFor(dim, n)) {
+		w, h := img.Fitted(a.Width, a.Height, limit)
+		return render.Image{Src: full + "?" + string(dim) + "=" + strconv.Itoa(n), Link: full, Width: w, Height: h}
+	}
+	if dim != 's' && limit > 0 && a.Width > 0 && a.Height > 0 {
+		// A size was asked for but the server makes no copy (a GIF, WebP or SVG, or
+		// a small file): the original is shown at that size by the browser.
+		w, h := img.Fitted(a.Width, a.Height, limit)
+		return render.Image{Src: full, Width: w, Height: h}
 	}
 	return render.Image{Src: full, Width: a.Width, Height: a.Height}
 }

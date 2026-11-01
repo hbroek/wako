@@ -9,11 +9,12 @@ import (
 
 // Ext maps the accepted image types to the file extension used in names.
 var Ext = map[string]string{
-	"image/png":     ".png",
-	"image/jpeg":    ".jpg",
-	"image/gif":     ".gif",
-	"image/webp":    ".webp",
-	"image/svg+xml": ".svg",
+	"image/png":       ".png",
+	"image/jpeg":      ".jpg",
+	"image/gif":       ".gif",
+	"image/webp":      ".webp",
+	"image/svg+xml":   ".svg",
+	"application/pdf": ".pdf", // an attachment, not an image: kept as uploaded
 }
 
 // Sniff decides the type from the content, never from what a client claims.

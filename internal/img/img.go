@@ -79,6 +79,8 @@ func Process(data []byte, mime string, lim Limits) (*Result, error) {
 	case "image/svg+xml":
 		w, h := svgDimensions(data)
 		res = &Result{Data: data, Mime: mime, Width: w, Height: h}
+	case "application/pdf":
+		res = &Result{Data: data, Mime: mime} // Sniff has checked the signature; nothing else is looked at
 	default:
 		return nil, ErrUnsupported
 	}

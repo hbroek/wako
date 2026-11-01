@@ -133,6 +133,9 @@ func ReadManifest(zr *zip.Reader) (*Manifest, error) {
 	return nil, nil
 }
 
+// sizeSuffix is how a page asks for a picture at a width or height.
+var sizeSuffix = regexp.MustCompile(`^\?[wh]=[0-9]{2,4}$`)
+
 var segBad = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // slugFor turns a file or folder name into a page slug.
@@ -325,7 +328,7 @@ func Import(zr *zip.Reader, sp *store.Space, o Options) (*Report, error) {
 				continue
 			}
 			mdFiles = append(mdFiles, e)
-		case store.IsImageName(e.name):
+		case store.IsAssetName(e.name):
 			if e.f.UncompressedSize64 > uint64(o.MaxImageBytes) {
 				rep.warn("skipped %q: larger than %d MiB", e.name, o.MaxImageBytes>>20)
 				continue
@@ -430,7 +433,7 @@ func Import(zr *zip.Reader, sp *store.Space, o Options) (*Report, error) {
 		}
 		mime, ok := img.Sniff(data, name)
 		if !ok {
-			rep.warn("skipped %q: not a PNG, JPEG, GIF, WebP or SVG image", name)
+			rep.warn("skipped %q: not a PNG, JPEG, GIF, WebP or SVG image, or a PDF", name)
 			continue
 		}
 		res, err := img.Process(data, mime, o.Limits)
@@ -516,7 +519,14 @@ func Import(zr *zip.Reader, sp *store.Space, o Options) (*Report, error) {
 					file = alt
 				}
 			}
-			if name, ok := assetName[file]; ok && name != d {
+			if name, ok := assetName[file]; ok {
+				// A size asked for with ?w=N or ?h=N stays on the library name.
+				if i := strings.IndexByte(d, '?'); i >= 0 && sizeSuffix.MatchString(d[i:]) {
+					name += d[i:]
+				}
+				if name == d {
+					continue
+				}
 				if next, ok := render.RewriteImageDest(body, d, name); ok {
 					body = next
 				} else {

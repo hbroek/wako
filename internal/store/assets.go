@@ -210,7 +210,7 @@ func (sp *Space) PutAsset(name, mime string, data []byte, width, height int) (a 
 // backfillDimensions fills in width and height for assets stored before they
 // were recorded. SVGs without numeric sizes stay at 0 and are skipped.
 func backfillDimensions(db *sql.DB) error {
-	rows, err := db.Query(`SELECT id, mime, data FROM assets WHERE width = 0 AND mime != 'image/svg+xml'`)
+	rows, err := db.Query(`SELECT id, mime, data FROM assets WHERE width = 0 AND mime LIKE 'image/%' AND mime != 'image/svg+xml'`)
 	if err != nil {
 		return err
 	}

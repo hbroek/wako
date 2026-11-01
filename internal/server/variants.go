@@ -10,43 +10,74 @@ import (
 	"github.com/hbroek/wako/internal/store"
 )
 
-// Smaller copies of large pictures are made on request with ?w=. Only these two
-// widths exist, so nobody can make the server scale to arbitrary sizes.
+// Smaller copies of large pictures are made on request. A page asks for one with
+// ?w=N (N pixels wide), ?h=N (N pixels high), and the server itself uses ?s=N
+// (longest side N) for the default picture size and library thumbnails. N must be
+// one of sizeLadder, so nobody can make the server scale to arbitrary sizes.
 const (
-	widthContent = 800 // pictures in pages
-	widthThumb   = 240 // library thumbnails
+	widthContent = 800 // longest side of a picture in a page, unless it asks for another size
+	widthThumb   = 240 // longest side of a library thumbnail
 )
 
-// variantMinSize is the file size below which a copy is not worth making.
-func variantMinSize(w int) (int64, bool) {
-	switch w {
-	case widthContent:
-		return 100 << 10, true
-	case widthThumb:
-		return 20 << 10, true
+// 60 is the thumbnail size.
+var sizeLadder = []int{60, 240, 400, 600, 800, 1200, 1600}
+
+func validSize(n int) bool {
+	for _, v := range sizeLadder {
+		if v == n {
+			return true
+		}
 	}
-	return 0, false
+	return false
 }
 
-// scalable reports whether a copy of a at width w is made: JPEG or PNG only
-// (a GIF may be animated, WebP cannot be re-encoded, SVG is already vector),
-// longer than w on its longest side, and big enough to be worth shrinking.
+// limitFor turns "n pixels wide" (dim 'w'), "n pixels high" ('h') or "longest
+// side n" ('s') into a longest-side limit for this asset, or 0 when its size is unknown.
+func limitFor(a *store.AssetInfo, dim byte, n int) int {
+	long := a.Width
+	if a.Height > long {
+		long = a.Height
+	}
+	base := long
+	switch dim {
+	case 'w':
+		base = a.Width
+	case 'h':
+		base = a.Height
+	}
+	if base <= 0 || long <= 0 {
+		return 0
+	}
+	return (n*long + base/2) / base
+}
+
+// minFor is the file size below which a copy is not worth making: a bigger
+// bar for the default page picture than for a size someone asked for.
+func minFor(dim byte, n int) int64 {
+	if dim == 's' && n >= widthContent {
+		return 100 << 10
+	}
+	return 20 << 10
+}
+
+// scalable reports whether a copy with this longest-side limit is made: JPEG or
+// PNG only (a GIF may be animated, WebP cannot be re-encoded, SVG is already
+// vector), longer than the limit on its longest side, and bigger than min bytes.
 // Whether the copy is then really smaller is decided when it is built.
-func scalable(a *store.AssetInfo, w int) bool {
-	min, ok := variantMinSize(w)
-	if !ok || (a.Mime != "image/jpeg" && a.Mime != "image/png") || a.Width <= 0 || a.Height <= 0 {
+func scalable(a *store.AssetInfo, limit int, min int64) bool {
+	if limit <= 0 || (a.Mime != "image/jpeg" && a.Mime != "image/png") || a.Width <= 0 || a.Height <= 0 {
 		return false
 	}
 	long := a.Width
 	if a.Height > long {
 		long = a.Height
 	}
-	return long > w && a.Size > min
+	return long > limit && a.Size > min
 }
 
 type vkey struct {
 	id string
-	w  int
+	w  int // longest side of the copy
 }
 
 // variant is a built copy. original means "the copy was not smaller; serve the

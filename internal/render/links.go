@@ -34,6 +34,9 @@ func Links(src string) []string {
 		if i := strings.IndexAny(d, "#?"); i >= 0 {
 			d = d[:i]
 		}
+		if strings.HasSuffix(strings.ToLower(d), ".pdf") {
+			return ast.WalkContinue, nil // an attachment, not a page
+		}
 		if d != "" && !seen[d] {
 			seen[d] = true
 			out = append(out, d)

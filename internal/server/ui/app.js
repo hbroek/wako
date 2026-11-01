@@ -567,21 +567,31 @@
       src.dispatchEvent(new Event('input'));
     }
     function upload(file) {
-      if (!file || file.type.indexOf('image/') !== 0) { say('Only image files can be added.', true); return Promise.resolve(); }
+      if (!file || !isAttachable(file)) { say('Only image and PDF files can be added.', true); return Promise.resolve(); }
       say('Uploading ' + (file.name || 'image') + '…');
       return api('POST', base + '/' + space + '/_assets?name=' + encodeURIComponent(file.name || 'image'), {
         headers: { 'Content-Type': file.type }, body: file
       }).then(function (r) {
         if (!r.ok) return reason(r).then(function (m) { say('Upload failed: ' + m, true); });
-        return r.json().then(function (a) { insertImage(a.name); say('Image added: ' + a.name); });
+        return r.json().then(function (a) { insertImage(a.name); say('Added: ' + a.name); });
       }, function () { say('Upload failed: network error', true); });
     }
     // Markdown refers to a library image by its bare name; the page binds it on save.
+    // The size picked in the library dialog goes on the name: photo.jpg?w=400 (wide) or ?h=300 (high).
+    var sizeDim = $('#media-dim'), sizeN = $('#media-size');
+    try { sizeDim.value = localStorage.getItem('img-dim') || 'w'; sizeN.value = localStorage.getItem('img-size') || ''; } catch (e) {}
+    function isPDF(f) { return f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''); }
+    function isAttachable(f) { return f.type.indexOf('image/') === 0 || isPDF(f); }
     function insertImage(name) {
-      insertAtCursor('![' + name.replace(/\.[^.]+$/, '') + '](' + name + ')\n');
+      var label = name.replace(/\.[^.]+$/, '');
+      if (/\.pdf$/i.test(name)) { insertAtCursor('[' + label + '](' + name + ')\n'); return; } // a PDF is a link, not a picture
+      var size = dlg.open && sizeN.value ? '?' + sizeDim.value + '=' + sizeN.value : '';
+      insertAtCursor('![' + label + '](' + name + size + ')\n');
     }
+    function rememberSize() { try { localStorage.setItem('img-dim', sizeDim.value); localStorage.setItem('img-size', sizeN.value); } catch (e) {} }
+    sizeDim.addEventListener('change', rememberSize); sizeN.addEventListener('change', rememberSize);
     function files(dt) {
-      return Array.prototype.filter.call(dt && dt.files || [], function (f) { return f.type.indexOf('image/') === 0; });
+      return Array.prototype.filter.call(dt && dt.files || [], isAttachable);
     }
     src.addEventListener('paste', function (e) {
       var imgs = files(e.clipboardData);
@@ -602,9 +612,13 @@
           if (!list.length) { var p = document.createElement('p'); p.className = 'hint'; p.textContent = 'No images yet. Upload one.'; grid.appendChild(p); }
           list.forEach(function (a) {
             var b = document.createElement('button'); b.type = 'button'; b.className = 'tile'; b.title = a.name;
-            var img = document.createElement('img'); img.src = a.url + '?w=240'; img.decoding = 'async'; img.alt = ''; img.loading = 'lazy';
             var c = document.createElement('div'); c.className = 'hint'; c.style.padding = '.3rem .5rem'; c.textContent = a.name;
-            b.appendChild(img); b.appendChild(c);
+            if (a.mime === 'application/pdf') {
+              var f = document.createElement('div'); f.className = 'filetile'; f.textContent = '📄 PDF'; b.appendChild(f);
+            } else {
+              var img = document.createElement('img'); img.src = a.url + '?s=240'; img.decoding = 'async'; img.alt = ''; img.loading = 'lazy'; b.appendChild(img);
+            }
+            b.appendChild(c);
             b.addEventListener('click', function () { insertImage(a.name); dlg.close(); src.focus(); });
             grid.appendChild(b);
           });

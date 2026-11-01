@@ -100,7 +100,7 @@ func (e *Env) Link(src, dest string) (ref Ref, internal, exists bool) {
 		}
 		ref = Ref{e.Space, cleanPage(joined)}
 	}
-	if ref.Path == "" || strings.HasPrefix(ref.Path, "_") || strings.Contains(ref.Path, "/_") {
+	if ref.Path == "" || strings.HasPrefix(ref.Path, "_") || strings.Contains(ref.Path, "/_") || strings.HasSuffix(strings.ToLower(ref.Path), ".pdf") {
 		return Ref{}, false, false
 	}
 	ix := e.index(ref.Space)

@@ -154,7 +154,7 @@ var attacks = []string{
 
 func TestKnownAttacksAreNeutralised(t *testing.T) {
 	resolvers := Options{
-		Images: func(name string) (Image, bool) {
+		Images: func(name string, _ Size) (Image, bool) {
 			return Image{Src: "/m/_assets/abc/" + name, Width: 10, Height: 10}, true
 		},
 		Links: func(string) (bool, bool) { return true, false },
@@ -205,7 +205,7 @@ func FuzzRenderIsAlwaysSafe(f *testing.F) {
 	f.Add("[ref]: <a b> \"t\"\n\n![r][ref]")
 	f.Fuzz(func(t *testing.T, src string) {
 		out, err := Render(src, Options{
-			Images: func(name string) (Image, bool) {
+			Images: func(name string, _ Size) (Image, bool) {
 				return Image{Src: "/m/" + name, Link: "/m/full/" + name, Width: 3, Height: 2}, name != ""
 			},
 			Links: func(d string) (bool, bool) { return true, len(d)%2 == 0 },

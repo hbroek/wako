@@ -80,6 +80,7 @@ Do not use footnotes or raw HTML; they do not render. Link to pages with ordinar
 // the space's image library and are named, not addressed.
 const imageRules = `
 To show an image, write ![short description](file name) with the bare file name exactly as listed in <images>: no folder, no web address, for example ![Henry in the sandbox](henry-sandbox.jpg).
+To show it at a size, add ?w=N (N pixels wide) or ?h=N (N pixels high) to the file name, with N one of 60 (a thumbnail), 240, 400, 600, 800, 1200 or 1600, for example ![Henry in the sandbox](henry-sandbox.jpg?w=400). Only add a size when the instruction asks for one.
 Use only listed files and never link to an image anywhere else. If the instruction wants an image that is not listed, write a TODO line instead.`
 
 // imageList is the library's file names, for the user message. Names are

@@ -49,7 +49,7 @@ func (s *Server) assetCaps(w http.ResponseWriter, sp *store.Space, acc Access, u
 	if upload {
 		if acc.Write {
 			allow, user = append(allow, "POST"), "read append"
-			h.Set("Accept-Post", "image/png, image/jpeg, image/gif, image/webp, image/svg+xml, multipart/form-data")
+			h.Set("Accept-Post", "image/png, image/jpeg, image/gif, image/webp, image/svg+xml, application/pdf, multipart/form-data")
 		}
 	} else if acc.Write {
 		allow, user = append(allow, "POST", "DELETE"), "read write append" // POST ?rename=
@@ -131,7 +131,7 @@ func (s *Server) assets(w http.ResponseWriter, r *http.Request, sp *store.Space,
 // renameAllowed lists the extensions a library name may have for each type.
 var renameAllowed = map[string][]string{
 	"image/png": {".png"}, "image/jpeg": {".jpg", ".jpeg"}, "image/gif": {".gif"},
-	"image/webp": {".webp"}, "image/svg+xml": {".svg"},
+	"image/webp": {".webp"}, "image/svg+xml": {".svg"}, "application/pdf": {".pdf"},
 }
 
 // checkRename validates a requested library name. A name without an extension
@@ -190,23 +190,39 @@ func (s *Server) renameAsset(w http.ResponseWriter, r *http.Request, sp *store.S
 // serveAsset sends an asset, or a smaller copy of it when ?w= asks for one.
 // immutable is true for URLs that contain the content hash.
 func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, sp *store.Space, id string, immutable bool) {
-	width := 0
-	if ws := r.URL.Query().Get("w"); ws != "" {
+	var dim byte
+	size := 0
+	for _, k := range []string{"w", "h", "s"} {
+		ws := r.URL.Query().Get(k)
+		if ws == "" {
+			continue
+		}
 		n, err := strconv.Atoi(ws)
-		if _, ok := variantMinSize(n); err != nil || !ok {
-			http.Error(w, fmt.Sprintf("w must be %d or %d", widthThumb, widthContent), http.StatusBadRequest)
+		if err != nil || !validSize(n) || dim != 0 {
+			http.Error(w, fmt.Sprintf("give one of w, h or s, with a size of %v", sizeLadder), http.StatusBadRequest)
 			return
 		}
-		width = n
+		dim, size = k[0], n
 	}
 	info, err := sp.AssetInfo(id)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	width := 0 // longest side of the copy asked for
+	if dim != 0 {
+		width = limitFor(info, dim, size)
+	}
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	if info.Mime == "application/pdf" {
+		// A PDF is not a web page, so there is nothing to sandbox, and browsers
+		// refuse to show a PDF in a sandboxed response. It is served inline under
+		// its own name, and nosniff keeps it from being taken for anything else.
+		h.Set("Content-Security-Policy", "frame-ancestors 'self'")
+		h.Set("Content-Disposition", `inline; filename="`+info.Name+`"`)
+	}
 	visibility := "public"
 	if !sp.PublicRead {
 		visibility = "private"
@@ -219,7 +235,7 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, sp *store.Sp
 		h.Set("Cache-Control", visibility+", no-cache")
 	}
 
-	if width > 0 && scalable(info, width) {
+	if width > 0 && scalable(info, width, minFor(dim, size)) {
 		etag := fmt.Sprintf(`"%s-w%d"`, id, width)
 		if inm := r.Header.Get("If-None-Match"); inm != "" && etagMatch(inm, etag) {
 			h.Set("ETag", etag)
@@ -298,7 +314,7 @@ func (s *Server) uploadAsset(w http.ResponseWriter, r *http.Request, sp *store.S
 	}
 	mimeType, ok := img.Sniff(data, name)
 	if !ok {
-		http.Error(w, "unsupported file type: only png, jpeg, gif, webp and svg images are accepted", http.StatusUnsupportedMediaType)
+		http.Error(w, "unsupported file type: only png, jpeg, gif, webp and svg images, and PDF files, are accepted", http.StatusUnsupportedMediaType)
 		return
 	}
 	lim := s.ImageLimits
@@ -371,14 +387,14 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request, sp *store.Sp
 			v := assetView{ID: a.ID, Name: a.Name, Mime: a.Mime, URL: s.assetURL(sp, a.ID, a.Name),
 				Size: a.Size, Width: a.Width, Height: a.Height, UsedBy: a.UsedBy}
 			v.Thumb, v.ThumbW, v.ThumbH = v.URL, a.Width, a.Height
-			if scalable(a, widthThumb) {
-				v.Thumb = v.URL + "?w=" + strconv.Itoa(widthThumb)
+			if scalable(a, widthThumb, minFor('s', widthThumb)) {
+				v.Thumb = v.URL + "?s=" + strconv.Itoa(widthThumb)
 				v.ThumbW, v.ThumbH = img.Fitted(a.Width, a.Height, widthThumb)
 			}
 			d.Assets = append(d.Assets, v)
 		}
 		if n, used, quota, err := sp.AssetUsage(); err == nil {
-			d.Usage = fmt.Sprintf("%d image%s, %s", n, plural(n), humanSize(used))
+			d.Usage = fmt.Sprintf("%d file%s, %s", n, plural(n), humanSize(used))
 			if quota >= 0 {
 				d.Usage += " of " + humanSize(quota)
 			}

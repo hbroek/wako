@@ -36,6 +36,12 @@ var (
 // ImageExts are the file extensions of library images.
 var ImageExts = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
+// IsAssetName reports whether name looks like the file name of anything in the
+// library: an image or a PDF attachment.
+func IsAssetName(name string) bool {
+	return IsImageName(name) || (len(name) > 4 && strings.EqualFold(name[len(name)-4:], ".pdf"))
+}
+
 // IsImageName reports whether name looks like the file name of a library image.
 func IsImageName(name string) bool {
 	n := strings.ToLower(name)
@@ -49,10 +55,10 @@ func IsImageName(name string) bool {
 
 // ValidSlug reports whether s is usable as a page slug. Slugs may not start
 // with "_" (reserved), end in ".md" (that suffix selects the Markdown view) or
-// end in an image extension (a page's images are served next to it, under
-// names like shot.png, so those URLs belong to images).
+// end in an image or ".pdf" extension (a page's images and attachments are
+// served next to it, under names like shot.png, so those URLs belong to them).
 func ValidSlug(s string) bool {
-	return len(s) <= 100 && slugRe.MatchString(s) && !strings.HasSuffix(strings.ToLower(s), ".md") && !IsImageName(s)
+	return len(s) <= 100 && slugRe.MatchString(s) && !strings.HasSuffix(strings.ToLower(s), ".md") && !IsAssetName(s)
 }
 
 // SplitPath splits and validates a page path such as "docs/ops/runbook".

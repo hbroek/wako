@@ -18,7 +18,7 @@ type Config struct {
 	SiteName  string // shown in the header and page titles
 	Logo      string // optional logo/favicon image file
 	MaxUpload int64  // largest accepted upload in MiB
-	MaxStored int64  // largest stored image in MiB, after processing
+	MaxStored int64  // largest stored image or PDF in MiB, after processing
 	MaxSide   int    // longest side of a compacted image, in pixels
 	MaxMpix   int64  // most decoded megapixels accepted
 	ImageMode string // "compact" or "original"
@@ -101,7 +101,7 @@ func Parse(args []string) (*Config, error) {
 	fs.StringVar(&c.SiteName, "site-name", env("WAKO_SITE_NAME", "Wako"), "site name shown in the header")
 	fs.StringVar(&c.Logo, "logo", env("WAKO_LOGO", ""), "path to a logo image (png, svg, ...)")
 	fs.Int64Var(&c.MaxUpload, "max-upload-mb", envInt("WAKO_MAX_UPLOAD_MB", 25), "largest accepted image upload, in MiB")
-	fs.Int64Var(&c.MaxStored, "max-stored-mb", envInt("WAKO_MAX_STORED_MB", 5), "largest image kept after processing, in MiB")
+	fs.Int64Var(&c.MaxStored, "max-stored-mb", envInt("WAKO_MAX_STORED_MB", 5), "largest image or PDF kept after processing, in MiB")
 	fs.IntVar(&c.MaxSide, "image-max-side", int(envInt("WAKO_IMAGE_MAX_SIDE", 1600)), "longest side in pixels after compacting a picture")
 	fs.Int64Var(&c.MaxMpix, "image-max-mpix", envInt("WAKO_IMAGE_MAX_MPIX", 24), "most megapixels a picture may have when decoded")
 	fs.StringVar(&c.ImageMode, "image-mode", env("WAKO_IMAGE_MODE", "compact"), `"compact" shrinks large pictures, "original" only strips metadata`)

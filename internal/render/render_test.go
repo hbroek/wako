@@ -17,7 +17,7 @@ func TestImageRefs(t *testing.T) {
 }
 
 func TestHTMLWithResolver(t *testing.T) {
-	resolve := func(name string) (Image, bool) {
+	resolve := func(name string, _ Size) (Image, bool) {
 		switch name {
 		case "shot.png":
 			return Image{Src: "/main/_assets/abc/shot.png", Width: 640, Height: 480}, true
@@ -62,7 +62,7 @@ func TestHTMLWithResolver(t *testing.T) {
 		t.Errorf("code block rendered an image: %s", html)
 	}
 	// Nothing a resolver returns can smuggle script URLs or attributes past the sanitiser.
-	evil := func(string) (Image, bool) {
+	evil := func(string, Size) (Image, bool) {
 		return Image{Src: "javascript:alert(1)", Link: "javascript:alert(2)", Width: 1, Height: 1}, true
 	}
 	if html, _ := HTMLWith("![a](x.png)", evil); strings.Contains(html, "javascript:") {

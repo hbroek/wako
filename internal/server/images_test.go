@@ -300,7 +300,7 @@ func TestPagesUseSizedLazyImages(t *testing.T) {
 
 	html := expect(t, e.do("GET", "/main/gallery", "", "Accept", "text/html"), 200)
 	for _, want := range []string{
-		`<a href="` + big.URL + `"`, `src="` + big.URL + `?w=800"`, `width="800"`, `height="600"`, `style="--r:1.3333"`,
+		`<a href="` + big.URL + `"`, `src="` + big.URL + `?s=800"`, `width="800"`, `height="600"`, `style="--r:1.3333"`,
 		`src="` + small.URL + `"`, `width="4"`, `height="4"`,
 	} {
 		if !strings.Contains(html, want) {
@@ -324,7 +324,7 @@ func TestPagesUseSizedLazyImages(t *testing.T) {
 	}
 	// The live preview renders the same way.
 	prev := expect(t, e.do("POST", "/_api/spaces/main/render?page=gallery", "![x](big.jpg)", "Content-Type", md), 200)
-	if !strings.Contains(prev, `?w=800`) || !strings.Contains(prev, `width="800"`) {
+	if !strings.Contains(prev, `?s=800`) || !strings.Contains(prev, `width="800"`) {
 		t.Errorf("preview: %s", prev)
 	}
 }
@@ -363,7 +363,7 @@ func TestLibraryShowsThumbnails(t *testing.T) {
 	big := asset(t, e.post("main", "big.jpg", "image/jpeg", jpegOf(t, noiseImg(1600, 1200))), 201)
 	asset(t, e.post("main", "tiny.png", "image/png", pngBytes(t, 4)), 201)
 	page := expect(t, e.do("GET", "/main/_assets/", "", "Accept", "text/html"), 200)
-	for _, want := range []string{`src="` + big.URL + `?w=240"`, `width="240"`, `height="180"`, "1600×1200", "of 200.0 MB"} {
+	for _, want := range []string{`src="` + big.URL + `?s=240"`, `width="240"`, `height="180"`, "1600×1200", "of 200.0 MB"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("library page missing %q", want)
 		}
@@ -559,4 +559,121 @@ func TestPagesCannotShadowImages(t *testing.T) {
 		}
 	}
 	expect(t, e.do("POST", "/main/docs/png?move=x.png", ""), 400)
+}
+
+func TestPagesChooseTheImageSize(t *testing.T) {
+	e := newEnv(t)
+	land := asset(t, e.post("main", "land.jpg", "image/jpeg", jpegOf(t, noiseImg(1600, 1200))), 201)
+	port := asset(t, e.post("main", "port.jpg", "image/jpeg", jpegOf(t, noiseImg(1200, 1600))), 201)
+
+	// The server makes the copies: ?w= is a width, ?h= a height, whichever way the picture is turned.
+	for _, c := range []struct {
+		url        string
+		wantW, wHt int
+	}{
+		{land.URL + "?w=400", 400, 300},
+		{land.URL + "?h=600", 800, 600},
+		{port.URL + "?w=400", 400, 533},
+		{port.URL + "?h=400", 300, 400},
+		{port.URL + "?s=800", 600, 800},
+		{land.URL + "?w=60", 60, 45},
+		{port.URL + "?h=60", 45, 60},
+	} {
+		if w, h := decodeSize(t, []byte(expect(t, e.do("GET", c.url, ""), 200))); w != c.wantW || h != c.wHt {
+			t.Errorf("%s: %dx%d, want %dx%d", c.url, w, h, c.wantW, c.wHt)
+		}
+	}
+	// Only the listed sizes, and only one of w, h and s at a time.
+	for _, bad := range []string{"?w=500", "?h=10000", "?w=abc", "?w=400&h=400", "?w=400&s=800"} {
+		expect(t, e.do("GET", land.URL+bad, ""), 400)
+	}
+	// Equal requests share a copy; the validators say so.
+	expect(t, e.do("GET", land.URL+"?w=400", "", "If-None-Match", `"`+land.ID+`-w400"`), 304)
+
+	// A page asks with a suffix on the name, and gets the right picture and size.
+	src := "![a](land.jpg?w=400)\n\n![b](port.jpg?h=400)\n\n![c](land.jpg?w=500)\n\n![d](land.jpg)\n"
+	expect(t, e.do("PUT", "/main/sizes", src, "Content-Type", md), 201)
+	html := expect(t, e.do("GET", "/main/sizes", "", "Accept", "text/html"), 200)
+	for _, want := range []string{
+		`src="` + land.URL + `?w=400"`, `width="400"`, `height="300"`,
+		`src="` + port.URL + `?h=400"`, `width="300"`, `height="400"`,
+		`src="` + land.URL + `?s=800"`, // an unlisted size, or none, gets the default
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("html missing %s\n%s", want, html)
+		}
+	}
+	if strings.Contains(html, "?w=500") {
+		t.Error("an unlisted size reached the page")
+	}
+	// The suffix does not hide a use of the image: renaming it still rewrites the page.
+	expect(t, e.do("POST", "/main/_assets/"+land.ID+"?rename=landscape.jpg", ""), 200)
+	if got := e.do("GET", "/main/sizes.md", "").Body.String(); !strings.Contains(got, "![a](landscape.jpg?w=400)") || strings.Contains(got, "land.jpg") {
+		t.Errorf("rename left the sized reference alone: %q", got)
+	}
+}
+
+var testPDF = []byte("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n")
+
+func TestPDFAttachments(t *testing.T) {
+	e := newEnv(t)
+	a := asset(t, e.post("main", "Manual.pdf", "application/pdf", testPDF), 201)
+	if a.Mime != "application/pdf" || a.Name != "Manual.pdf" || a.Size != int64(len(testPDF)) {
+		t.Fatalf("stored: %+v", a)
+	}
+	// The type comes from the content, never from the name or the header.
+	expect(t, e.post("main", "fake.pdf", "application/pdf", []byte("<html><script>alert(1)</script>")), 415)
+	// A PDF under an image name is still just a PDF, named as one.
+	if o := asset(t, e.post("main", "photo.png", "image/png", append(append([]byte{}, testPDF...), '\n')), 201); o.Mime != "application/pdf" || o.Name != "photo.pdf" {
+		t.Errorf("a PDF sent as a png: %+v", o)
+	}
+	// Same upload limit as the images.
+	small := New(e.st, "")
+	small.MaxUpload = 20
+	req := localReq("POST", "/main/_assets?name=big.pdf", bytes.NewReader(testPDF))
+	req.Header.Set("Content-Type", "application/pdf")
+	rec := httptest.NewRecorder()
+	small.ServeHTTP(rec, req)
+	if rec.Code != 413 {
+		t.Errorf("size limit: %d", rec.Code)
+	}
+
+	// Served as a PDF, inline, with no sandbox (browsers will not show a sandboxed PDF).
+	r := e.do("GET", a.URL, "")
+	if r.Code != 200 || r.Header().Get("Content-Type") != "application/pdf" || r.Body.String() != string(testPDF) {
+		t.Fatalf("serving: %d %v", r.Code, r.Header())
+	}
+	if got := r.Header().Get("Content-Disposition"); got != `inline; filename="Manual.pdf"` {
+		t.Errorf("disposition: %q", got)
+	}
+	if csp := r.Header().Get("Content-Security-Policy"); strings.Contains(csp, "sandbox") || r.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("headers: %v", r.Header())
+	}
+
+	// A page links to it by name: a real link to the file, not a missing page.
+	expect(t, e.do("PUT", "/main/docs", "# Docs\n", "Content-Type", md), 201)
+	expect(t, e.do("PUT", "/main/docs/guide", "# Guide\n\nRead the [Manual](Manual.pdf).\n", "Content-Type", md), 201)
+	html := expect(t, e.do("GET", "/main/docs/guide", "", "Accept", "text/html"), 200)
+	if !strings.Contains(html, `<a href="`+a.URL+`">Manual</a>`) || strings.Contains(html, `class="missing"`) {
+		t.Errorf("the link: %s", html)
+	}
+	if got := brokenOf(t, e, "main"); len(got) != 0 {
+		t.Errorf("an attachment shows as a broken link: %+v", got)
+	}
+	// It is served next to the page too, where a relative link points.
+	if r := e.do("GET", "/main/docs/Manual.pdf", ""); r.Code != 200 || r.Header().Get("Content-Type") != "application/pdf" {
+		t.Errorf("next to the page: %d %v", r.Code, r.Header())
+	}
+	// No page can take a name that belongs to an attachment.
+	expect(t, e.do("PUT", "/main/docs/x.pdf", "# no\n", "Content-Type", md), 400)
+
+	// The library lists it, and renaming rewrites the page.
+	lib := expect(t, e.do("GET", "/main/_assets/", "", "Accept", "text/html"), 200)
+	if !strings.Contains(lib, `class="filetile"`) || !strings.Contains(lib, "Manual.pdf") {
+		t.Errorf("the library page: %s", lib)
+	}
+	expect(t, e.do("POST", "/main/_assets/"+a.ID+"?rename=Handbook.pdf", ""), 200)
+	if got := e.do("GET", "/main/docs/guide.md", "").Body.String(); !strings.Contains(got, "[Manual](Handbook.pdf)") {
+		t.Errorf("rename left the page alone: %q", got)
+	}
 }
