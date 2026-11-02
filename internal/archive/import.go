@@ -134,7 +134,7 @@ func ReadManifest(zr *zip.Reader) (*Manifest, error) {
 }
 
 // sizeSuffix is how a page asks for a picture at a width or height.
-var sizeSuffix = regexp.MustCompile(`^[?#][wh]=[0-9]{2,4}$`)
+var sizeSuffix = regexp.MustCompile(`^[?#][wh]=?[0-9]{2,4}$`)
 
 var segBad = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 

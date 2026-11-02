@@ -106,7 +106,7 @@ func (s *Server) aiEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	replace := mode == "replace"
-	text = externalImage.ReplaceAllString(text, "$1")
+	text = dropNewImages(text, in.Before, in.Selected, in.After)
 	out := editOut{Text: text, Model: res.Model, Truncated: res.Truncated}
 	switch {
 	case replace && in.Selected == "" && long:

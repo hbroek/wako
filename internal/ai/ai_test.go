@@ -316,6 +316,9 @@ func TestPromptsListTheImageLibrary(t *testing.T) {
 		if !strings.Contains(all, "#w=N") {
 			t.Errorf("the prompt does not explain image sizes")
 		}
+		if !strings.Contains(all, "web address") || !strings.Contains(all, "#h=60") {
+			t.Errorf("%s: sizes on pictures from web addresses were not explained", name)
+		}
 		if !strings.Contains(all, "![Henry in the sandbox](henry-sandbox.jpg)") {
 			t.Errorf("%s: the image syntax was not explained", name)
 		}

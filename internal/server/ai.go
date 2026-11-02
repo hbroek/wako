@@ -252,6 +252,24 @@ func (s *Server) aiSpaces(w http.ResponseWriter, r *http.Request, named string, 
 
 var imageTag = regexp.MustCompile(`<img\b[^>]*>`)
 var externalImage = regexp.MustCompile(`!\[([^\]]*)\]\(\s*<?(?:https?:)?//[^)]*\)`)
+var externalImageAddr = regexp.MustCompile(`^!\[[^\]]*\]\(\s*<?([^)\s>]*)`)
+var sizeFragment = regexp.MustCompile(`#[wh]=?[0-9]{2,4}$`)
+
+// dropNewImages removes images the model made up from other sites (a page could
+// make it emit one whose address carries the conversation away). A picture whose
+// address is already in the text it was given stays, and its size may change:
+// ![a](https://example.com/a.jpg#h=60) is the same picture as ...a.jpg.
+func dropNewImages(text string, given ...string) string {
+	have := strings.Join(given, "\n")
+	return externalImage.ReplaceAllStringFunc(text, func(m string) string {
+		if a := externalImageAddr.FindStringSubmatch(m); a != nil {
+			if base := sizeFragment.ReplaceAllString(a[1], ""); base != "" && strings.Contains(have, base) {
+				return m
+			}
+		}
+		return externalImage.ReplaceAllString(m, "$1")
+	})
+}
 
 // aiFailure words a model failure for the user and logs the cause.
 func (s *Server) aiFailure(w http.ResponseWriter, err error, what string) {
@@ -410,7 +428,7 @@ func (s *Server) aiDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.aiLog(r, "draft", in.Space, res, time.Since(start), len(docs))
-	md := externalImage.ReplaceAllString(ai.CleanDraft(res.Text), "$1")
+	md := dropNewImages(ai.CleanDraft(res.Text), existing)
 	if len(md) > maxBody {
 		jsonError(w, http.StatusBadGateway, "the draft came out too long; ask for something smaller")
 		return

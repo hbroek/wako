@@ -102,12 +102,12 @@ type Resolver func(name string, size Size) (Image, bool)
 // imageDest matches a reference that is just a library file name, with an
 // optional size suffix: no scheme, no directory, nothing that is a path or URL
 // in its own right.
-var imageDest = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)(?:[?#]([wh])=([0-9]{2,4}))?$`)
+var imageDest = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)(?:[?#]([wh])=?([0-9]{2,4}))?$`)
 
 // fragmentSize matches a size asked for at the end of any other image address,
 // such as "https://example.com/logo.svg#w=400". It is a display size only: the
 // fragment is not sent to the other site.
-var fragmentSize = regexp.MustCompile(`#([wh])=([0-9]{2,4})$`)
+var fragmentSize = regexp.MustCompile(`#([wh])=?([0-9]{2,4})$`)
 
 // parseImageDest splits "photo.jpg#w=400" into the name and the size.
 func parseImageDest(d []byte) (name string, size Size, ok bool) {
@@ -431,7 +431,7 @@ func rewriteImage(src, oldName, newName string, refs func(string) []string) (str
 
 	old := regexp.QuoteMeta(oldName)
 	title := `(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?`
-	size := `(?:[?#][wh]=[0-9]{2,4})?`
+	size := `(?:[?#][wh]=?[0-9]{2,4})?`
 	inline := regexp.MustCompile(`(!?\[(?:[^\[\]\\]|\\.|\[[^\]]*\])*\]\([ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*\))`)
 	def := regexp.MustCompile(`(?m)(^ {0,3}\[[^\]]+\]:[ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*$)`)
 

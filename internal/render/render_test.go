@@ -290,6 +290,14 @@ func TestFragmentSizes(t *testing.T) {
 	if strings.Contains(out, "#w=") || strings.Contains(out, "#h=") {
 		t.Errorf("fragment left in %s", out)
 	}
+	// The "=" is optional: #h60 is #h=60.
+	out, _ = HTMLWith("![a](https://example.com/a.svg#h60) ![b](/_ui/icon.svg#w300)", nil)
+	if !strings.Contains(out, `style="--h:60px"`) || !strings.Contains(out, `width="300"`) || strings.Contains(out, "#") {
+		t.Errorf("short form: %s", out)
+	}
+	if refs := ImageRefs("![a](p.jpg#w400)"); len(refs) != 1 || refs[0] != "p.jpg" {
+		t.Errorf("short form refs = %v", refs)
+	}
 	// Renaming keeps either form.
 	if got, ok := RewriteImageRef("![a](p.jpg#w=400)", "p.jpg", "q.jpg"); !ok || got != "![a](q.jpg#w=400)" {
 		t.Errorf("rename = %q %v", got, ok)
