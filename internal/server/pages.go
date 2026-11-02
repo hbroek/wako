@@ -542,14 +542,25 @@ func (s *Server) pageImage(sp *store.Space, a *store.AssetInfo, size render.Size
 		dim, n = 'h', size.H
 	}
 	limit := limitFor(a, dim, n)
+	// A size that was asked for is the size shown, even when the picture is
+	// smaller: the browser enlarges it.
+	shown := func() (int, int) {
+		switch {
+		case dim == 'w' && a.Width > 0 && a.Height > 0:
+			return n, max(1, (n*a.Height+a.Width/2)/a.Width)
+		case dim == 'h' && a.Width > 0 && a.Height > 0:
+			return max(1, (n*a.Width+a.Height/2)/a.Height), n
+		}
+		return img.Fitted(a.Width, a.Height, limit)
+	}
 	if scalable(a, limit, minFor(dim, n)) {
-		w, h := img.Fitted(a.Width, a.Height, limit)
+		w, h := shown()
 		return render.Image{Src: full + "?" + string(dim) + "=" + strconv.Itoa(n), Link: full, Width: w, Height: h}
 	}
 	if dim != 's' && limit > 0 && a.Width > 0 && a.Height > 0 {
 		// A size was asked for but the server makes no copy (a GIF, WebP or SVG, or
 		// a small file): the original is shown at that size by the browser.
-		w, h := img.Fitted(a.Width, a.Height, limit)
+		w, h := shown()
 		return render.Image{Src: full, Width: w, Height: h}
 	}
 	return render.Image{Src: full, Width: a.Width, Height: a.Height}

@@ -44,6 +44,7 @@ input[type=text],input[type=password],input:not([type]),input[type=search],selec
 .actions{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
 .doc{max-width:48rem;overflow-wrap:anywhere}
 .doc img{height:auto;max-width:min(100%,calc(85vh * var(--r,100)))}
+.doc img[style*="--h"]{height:var(--h);width:auto;object-fit:contain}
 .doc pre{overflow:auto;padding:.75rem;background:var(--bg2);border-radius:6px}
 .doc code{font-size:.9em}
 .doc li:has(>.task){list-style:none;margin-left:-1.3em}

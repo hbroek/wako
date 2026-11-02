@@ -291,6 +291,18 @@ func TestVariantRules(t *testing.T) {
 	}
 }
 
+func TestSmallPicturesAreEnlargedToTheSizeAsked(t *testing.T) {
+	e := newEnv(t)
+	small := asset(t, e.post("main", "small.png", "image/png", pngBytes(t, 4)), 201)
+	expect(t, e.do("PUT", "/main/enlarged", "![a](small.png#w=240)\n\n![b](small.png#h=400)\n", "Content-Type", md), 201)
+	html := expect(t, e.do("GET", "/main/enlarged", "", "Accept", "text/html"), 200)
+	for _, want := range []string{`src="` + small.URL + `"`, `width="240"`, `height="240"`, `width="400"`, `height="400"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("html missing %s\n%s", want, html)
+		}
+	}
+}
+
 func TestPagesUseSizedLazyImages(t *testing.T) {
 	e := newEnv(t)
 	big := asset(t, e.post("main", "big.jpg", "image/jpeg", jpegOf(t, noiseImg(1600, 1200))), 201)

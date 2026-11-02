@@ -282,7 +282,7 @@ func TestFragmentSizes(t *testing.T) {
 	}
 	// Another address loses the fragment and gets the size as an attribute.
 	out, _ := HTMLWith("![a](https://example.com/logo.svg#w=400) ![b](https://example.com/b.png#h=90) ![c](https://example.com/c.png#top)", nil)
-	for _, want := range []string{`src="https://example.com/logo.svg"`, `width="400"`, `src="https://example.com/b.png"`, `height="90"`, `c.png#top`} {
+	for _, want := range []string{`src="https://example.com/logo.svg"`, `width="400"`, `src="https://example.com/b.png"`, `style="--h:90px"`, `c.png#top`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in %s", want, out)
 		}

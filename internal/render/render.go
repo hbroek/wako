@@ -44,7 +44,7 @@ var policy = func() *bluemonday.Policy {
 	p.AllowAttrs("loading").Matching(regexp.MustCompile(`^(lazy|eager)$`)).OnElements("img")
 	p.AllowAttrs("decoding").Matching(regexp.MustCompile(`^async$`)).OnElements("img")
 	p.AllowAttrs("class").Matching(regexp.MustCompile(`^missing$`)).OnElements("a")
-	p.AllowAttrs("style").Matching(regexp.MustCompile(`^--r:\d{1,4}(\.\d{1,4})?$`)).OnElements("img")
+	p.AllowAttrs("style").Matching(regexp.MustCompile(`^(--r:\d{1,4}(\.\d{1,4})?|--h:\d{2,4}px)$`)).OnElements("img")
 	// The emoji that stands for a task list item's box (see taskEmoji).
 	p.AllowAttrs("class").Matching(regexp.MustCompile(`^task$`)).OnElements("span")
 	p.AllowAttrs("role").Matching(regexp.MustCompile(`^img$`)).OnElements("span")
@@ -235,11 +235,13 @@ func Render(src string, o Options) (string, error) {
 					}
 				} else {
 					img.Destination = []byte(base)
-					attr := "width"
-					if size.H > 0 {
-						attr = "height"
-					}
-					img.SetAttributeString(attr, m[2])
+				}
+				// Either way the picture is shown at the size asked for, enlarged by
+				// the browser if the original (or its copy) is smaller.
+				if size.H > 0 {
+					img.SetAttributeString("style", []byte("--h:"+string(m[2])+"px"))
+				} else {
+					img.SetAttributeString("width", m[2])
 				}
 			}
 		}
