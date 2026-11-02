@@ -134,7 +134,7 @@ func ReadManifest(zr *zip.Reader) (*Manifest, error) {
 }
 
 // sizeSuffix is how a page asks for a picture at a width or height.
-var sizeSuffix = regexp.MustCompile(`^\?[wh]=[0-9]{2,4}$`)
+var sizeSuffix = regexp.MustCompile(`^[?#][wh]=[0-9]{2,4}$`)
 
 var segBad = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
@@ -520,8 +520,8 @@ func Import(zr *zip.Reader, sp *store.Space, o Options) (*Report, error) {
 				}
 			}
 			if name, ok := assetName[file]; ok {
-				// A size asked for with ?w=N or ?h=N stays on the library name.
-				if i := strings.IndexByte(d, '?'); i >= 0 && sizeSuffix.MatchString(d[i:]) {
+				// A size asked for with #w=N or #h=N (or the older ?w=N) stays on the library name.
+				if i := strings.IndexAny(d, "?#"); i >= 0 && sizeSuffix.MatchString(d[i:]) {
 					name += d[i:]
 				}
 				if name == d {

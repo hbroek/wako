@@ -266,3 +266,32 @@ func TestImageDestsAndPathRewrite(t *testing.T) {
 		t.Errorf("RewriteImageRef: %q %v", got, ok)
 	}
 }
+
+func TestFragmentSizes(t *testing.T) {
+	var got []Size
+	res := func(name string, size Size) (Image, bool) { got = append(got, size); return Image{}, false }
+	// A library name takes #w= and the older ?w= alike.
+	for _, src := range []string{"![a](p.jpg#w=400)", "![a](p.jpg?w=400)"} {
+		got = nil
+		if _, err := HTMLWith(src, res); err != nil || len(got) != 1 || got[0] != (Size{W: 400}) {
+			t.Errorf("%s: sizes %v, err %v", src, got, err)
+		}
+	}
+	if refs := ImageRefs("![a](p.jpg#h=300)"); len(refs) != 1 || refs[0] != "p.jpg" {
+		t.Errorf("refs = %v", refs)
+	}
+	// Another address loses the fragment and gets the size as an attribute.
+	out, _ := HTMLWith("![a](https://example.com/logo.svg#w=400) ![b](https://example.com/b.png#h=90) ![c](https://example.com/c.png#top)", nil)
+	for _, want := range []string{`src="https://example.com/logo.svg"`, `width="400"`, `src="https://example.com/b.png"`, `height="90"`, `c.png#top`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+	if strings.Contains(out, "#w=") || strings.Contains(out, "#h=") {
+		t.Errorf("fragment left in %s", out)
+	}
+	// Renaming keeps either form.
+	if got, ok := RewriteImageRef("![a](p.jpg#w=400)", "p.jpg", "q.jpg"); !ok || got != "![a](q.jpg#w=400)" {
+		t.Errorf("rename = %q %v", got, ok)
+	}
+}

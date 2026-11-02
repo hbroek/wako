@@ -431,10 +431,6 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 		s.aiAPI(w, r, parts[1:])
 		return
 	}
-	if len(parts) == 2 && parts[0] == "resize" && parts[1] == "link" {
-		s.resizeLink(w, r)
-		return
-	}
 	switch {
 	case len(parts) == 1 && parts[0] == "spaces":
 		switch r.Method {

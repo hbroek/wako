@@ -112,7 +112,7 @@ func (c *linkCtx) linkCheck(env *wiki.Env, src string) render.LinkCheck {
 // renderPage renders the Markdown of the page at src (empty if it is not saved
 // yet) with images resolved and links to missing pages marked.
 func (s *Server) renderPage(r *http.Request, sp *store.Space, src, body string, bound map[string]*store.AssetInfo, fallback bool) (string, error) {
-	opts := render.Options{Images: s.resolver(sp, bound, fallback)}
+	opts := render.Options{Images: s.resolver(sp, bound, fallback), External: s.externalResizer(sp)}
 	if src != "" {
 		c := s.newLinkCtx(r)
 		opts.Links = c.linkCheck(c.env(sp.Slug), src)

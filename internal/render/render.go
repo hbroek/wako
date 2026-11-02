@@ -79,8 +79,9 @@ type Image struct {
 }
 
 // Size is the size a page asks for with a suffix on the image name:
-// "photo.jpg?w=400" is 400 pixels wide, "photo.jpg?h=300" 300 pixels high. At
-// most one of the two is set; both are 0 when the name has no suffix.
+// "photo.jpg#w=400" is 400 pixels wide, "photo.jpg#h=300" 300 pixels high (the
+// older "?w=400" form is still read). At most one of the two is set; both are 0
+// when the name has no suffix.
 type Size struct{ W, H int }
 
 // fileLinkName reports whether a link destination is the bare name of a PDF
@@ -101,9 +102,14 @@ type Resolver func(name string, size Size) (Image, bool)
 // imageDest matches a reference that is just a library file name, with an
 // optional size suffix: no scheme, no directory, nothing that is a path or URL
 // in its own right.
-var imageDest = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\?([wh])=([0-9]{2,4}))?$`)
+var imageDest = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]*)(?:[?#]([wh])=([0-9]{2,4}))?$`)
 
-// parseImageDest splits "photo.jpg?w=400" into the name and the size.
+// fragmentSize matches a size asked for at the end of any other image address,
+// such as "https://example.com/logo.svg#w=400". It is a display size only: the
+// fragment is not sent to the other site.
+var fragmentSize = regexp.MustCompile(`#([wh])=([0-9]{2,4})$`)
+
+// parseImageDest splits "photo.jpg#w=400" into the name and the size.
 func parseImageDest(d []byte) (name string, size Size, ok bool) {
 	m := imageDest.FindSubmatch(d)
 	if m == nil {
@@ -124,6 +130,17 @@ func parseImageDest(d []byte) (name string, size Size, ok bool) {
 type Options struct {
 	Images Resolver  // bare image names
 	Links  LinkCheck // marks links to pages that do not exist
+	// External, if set, may swap a picture on another site that asks for a size
+	// ("https://example.com/a.jpg#w=400") for the address of a smaller copy. When it
+	// declines, the size becomes the width or height the picture is shown at.
+	External func(addr string, size Size) (string, bool)
+}
+
+func (o Options) resizeExternal(addr string, size Size) (string, bool) {
+	if o.External == nil {
+		return "", false
+	}
+	return o.External(addr, size)
 }
 
 // HTML renders src to sanitised HTML.
@@ -199,6 +216,30 @@ func Render(src string, o Options) (string, error) {
 				}
 				if im.Link != "" && !insideLink(img) {
 					wraps = append(wraps, wrap{img, im.Link})
+				}
+			}
+		}
+		if _, _, isName := parseImageDest(img.Destination); !isName {
+			// A picture elsewhere: "#w=400" or "#h=300" asks for that size.
+			if m := fragmentSize.FindSubmatch(img.Destination); m != nil {
+				base := string(img.Destination[:len(img.Destination)-len(m[0])])
+				n, _ := strconv.Atoi(string(m[2]))
+				size := Size{W: n}
+				if m[1][0] == 'h' {
+					size = Size{H: n}
+				}
+				if copyAt, ok := o.resizeExternal(base, size); ok {
+					img.Destination = []byte(copyAt)
+					if !insideLink(img) {
+						wraps = append(wraps, wrap{img, base}) // the full picture is one click away
+					}
+				} else {
+					img.Destination = []byte(base)
+					attr := "width"
+					if size.H > 0 {
+						attr = "height"
+					}
+					img.SetAttributeString(attr, m[2])
 				}
 			}
 		}
@@ -388,7 +429,7 @@ func rewriteImage(src, oldName, newName string, refs func(string) []string) (str
 
 	old := regexp.QuoteMeta(oldName)
 	title := `(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?`
-	size := `(?:\?[wh]=[0-9]{2,4})?`
+	size := `(?:[?#][wh]=[0-9]{2,4})?`
 	inline := regexp.MustCompile(`(!?\[(?:[^\[\]\\]|\\.|\[[^\]]*\])*\]\([ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*\))`)
 	def := regexp.MustCompile(`(?m)(^ {0,3}\[[^\]]+\]:[ \t]*<?)(` + old + `)(` + size + `>?` + title + `[ \t]*$)`)
 

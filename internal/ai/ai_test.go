@@ -313,7 +313,7 @@ func TestPromptsListTheImageLibrary(t *testing.T) {
 		if !strings.Contains(all, "<images>\nhenry-sandbox.jpg\nlogo.png\n</images>") {
 			t.Errorf("%s: library not listed, or not filtered:\n%s", name, all)
 		}
-		if !strings.Contains(all, "?w=N") {
+		if !strings.Contains(all, "#w=N") {
 			t.Errorf("the prompt does not explain image sizes")
 		}
 		if !strings.Contains(all, "![Henry in the sandbox](henry-sandbox.jpg)") {

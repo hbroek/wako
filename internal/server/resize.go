@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hbroek/wako/internal/img"
+	"github.com/hbroek/wako/internal/render"
 	"github.com/hbroek/wako/internal/store"
 )
 
@@ -31,7 +31,7 @@ import (
 //
 // Fetching any address a stranger names is dangerous, so three things hold:
 //   - the link must carry a signature that only a signed-in member can have made
-//     (see resizeLink), so the server is not an open proxy;
+//     (see externalResizer), so the server is not an open proxy;
 //   - the server never connects to a private, loopback or link-local address, nor
 //     follows a redirect into one, however the name resolves (it looks at the
 //     address actually being dialled, which also defeats DNS tricks);
@@ -184,70 +184,36 @@ func (s *Server) resizeAllowed(sp *store.Space) error {
 	return nil
 }
 
-// resizeLink handles POST /_api/resize/link {"space":"main","img":"https://…","w":60}:
-// it checks the address and gives back the signed /_resize address to put in a
-// page of that space. Anyone who may edit or suggest in the space can ask.
-func (s *Server) resizeLink(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "POST")
-		jsonError(w, http.StatusMethodNotAllowed, "POST only")
-		return
+// externalResizer returns what the renderer uses to turn
+// ![alt](https://example.com/a.jpg#w=400) into the signed address of a smaller
+// copy, or nil when the server or the space has resizing switched off. It
+// declines (and the picture is simply shown at that size) for anything that is
+// not a JPEG or PNG by its name, a size not on the ladder, or an address the
+// server would refuse to fetch. The signature is made here, so it covers only
+// what a member of the space wrote into a page.
+func (s *Server) externalResizer(sp *store.Space) func(string, render.Size) (string, bool) {
+	if sp == nil || s.resizeAllowed(sp) != nil {
+		return nil
 	}
-	if !s.aiAllowed(r) { // "signed in, or sign-in is off"
-		w.Header().Set("WWW-Authenticate", `Bearer realm="wako"`)
-		jsonError(w, http.StatusUnauthorized, "sign in to make a resized picture link")
-		return
+	return func(addr string, size render.Size) (string, bool) {
+		dim, n := byte('w'), size.W
+		if size.H > 0 {
+			dim, n = 'h', size.H
+		}
+		u, err := checkResizeURL(addr)
+		if err != nil || !validSize(n) {
+			return "", false
+		}
+		switch strings.ToLower(path.Ext(u.Path)) {
+		case ".jpg", ".jpeg", ".png":
+		default:
+			return "", false
+		}
+		if ip, perr := netip.ParseAddr(u.Hostname()); perr == nil && blockedIP(ip) && !s.allowPrivateFetch {
+			return "", false
+		}
+		return s.resizeURL(sp.Slug, dim, n, addr), true
 	}
-	var in struct {
-		Space string `json:"space"`
-		Img   string `json:"img"`
-		W     int    `json:"w"`
-		H     int    `json:"h"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
-		jsonError(w, http.StatusBadRequest, "bad JSON")
-		return
-	}
-	sp, err := s.st.GetSpace(in.Space)
-	if err != nil || !s.access(r, sp).Read {
-		jsonError(w, http.StatusNotFound, "no such space")
-		return
-	}
-	if acc := s.access(r, sp); !acc.Write && !acc.Suggest {
-		jsonError(w, http.StatusForbidden, "you may not edit pages in this space")
-		return
-	}
-	if err := s.resizeAllowed(sp); err != nil {
-		jsonError(w, http.StatusForbidden, err.Error())
-		return
-	}
-	in.Img = strings.TrimSpace(in.Img)
-	u, err := checkResizeURL(in.Img)
-	if err != nil {
-		jsonError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if ip, perr := netip.ParseAddr(u.Hostname()); perr == nil && blockedIP(ip) && !s.allowPrivateFetch {
-		jsonError(w, http.StatusBadRequest, errResizeDenied.Error())
-		return
-	}
-	q := url.Values{}
-	switch {
-	case in.W > 0 && in.H == 0:
-		q.Set("w", strconv.Itoa(in.W))
-	case in.H > 0 && in.W == 0:
-		q.Set("h", strconv.Itoa(in.H))
-	}
-	dim, n, err := resizeSize(q)
-	if err != nil {
-		jsonError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	name := strings.TrimSuffix(path.Base(u.Path), path.Ext(u.Path))
-	if name == "" || name == "." || name == "/" {
-		name = u.Hostname()
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"url": s.resizeURL(sp.Slug, dim, n, in.Img), "alt": name})
 }
 
 // resize serves GET /_resize?w=60&img=<address>&space=<space>&sig=<signature>.
@@ -270,7 +236,7 @@ func (s *Server) resize(w http.ResponseWriter, r *http.Request) {
 	}
 	space := q.Get("space")
 	if s.auth != nil && !s.auth.signer.CheckTag("resize", resizeSigData(space, dim, n, raw), q.Get("sig")) {
-		http.Error(w, "this link is not signed; make it with the Image / PDF… button in the editor", http.StatusForbidden)
+		http.Error(w, "this link is not signed; write the picture's address in a page with #w=400 and the server signs it", http.StatusForbidden)
 		return
 	}
 	sp, err := s.st.GetSpace(space)

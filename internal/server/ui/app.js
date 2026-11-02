@@ -577,7 +577,7 @@
       }, function () { say('Upload failed: network error', true); });
     }
     // Markdown refers to a library image by its bare name; the page binds it on save.
-    // The size picked in the library dialog goes on the name: photo.jpg?w=400 (wide) or ?h=300 (high).
+    // The size picked in the library dialog goes on the name: photo.jpg#w=400 (wide) or #h=300 (high).
     var sizeDim = $('#media-dim'), sizeN = $('#media-size');
     try { sizeDim.value = localStorage.getItem('img-dim') || 'w'; sizeN.value = localStorage.getItem('img-size') || ''; } catch (e) {}
     function isPDF(f) { return f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''); }
@@ -585,23 +585,20 @@
     function insertImage(name) {
       var label = name.replace(/\.[^.]+$/, '');
       if (/\.pdf$/i.test(name)) { insertAtCursor('[' + label + '](' + name + ')\n'); return; } // a PDF is a link, not a picture
-      var size = dlg.open && sizeN.value ? '?' + sizeDim.value + '=' + sizeN.value : '';
+      var size = dlg.open && sizeN.value ? '#' + sizeDim.value + '=' + sizeN.value : '';
       insertAtCursor('![' + label + '](' + name + size + ')\n');
     }
-    // A picture on another site: the server signs a /_resize address for it.
+    // A picture on another site goes in by its address with the size on the end, like a library picture:
+    // ![name](https://example.com/photo.jpg#w=800). The server makes the smaller copy when the page is shown.
     $('#web-add').addEventListener('click', function () {
-      var u = $('#web-url').value.trim(), msg = $('#web-msg');
-      if (!u) { msg.textContent = 'Paste the address of a picture first.'; return; }
-      var body = { img: u, space: space }; body[sizeN.value ? sizeDim.value : 'w'] = +(sizeN.value || 800);
-      msg.textContent = 'Checking…';
-      json('POST', base + '/_api/resize/link', body).then(function (r) {
-        return r.text().then(function (t) {
-          var res = {}; try { res = JSON.parse(t); } catch (e) {}
-          if (!r.ok) { msg.textContent = res.error || t || 'That did not work.'; return; }
-          insertAtCursor('![' + res.alt.replace(/[\[\]]/g, '') + '](' + res.url + ')\n');
-          msg.textContent = ''; $('#web-url').value = ''; dlg.close(); src.focus();
-        });
-      }, function () { msg.textContent = 'Network error.'; });
+      var u = $('#web-url').value.trim(), msg = $('#web-msg'), url;
+      try { url = new URL(u); } catch (e) { url = null; }
+      if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) { msg.textContent = 'Paste the address of a picture first (starting with https://).'; return; }
+      url.hash = '';
+      var name = decodeURIComponent(url.pathname.split('/').pop() || '').replace(/\.[^.]+$/, '') || url.hostname;
+      var size = '#' + (sizeN.value ? sizeDim.value : 'w') + '=' + (sizeN.value || 800);
+      insertAtCursor('![' + name.replace(/[\[\]]/g, '') + '](' + url.href + size + ')\n');
+      msg.textContent = ''; $('#web-url').value = ''; dlg.close(); src.focus();
     });
     function rememberSize() { try { localStorage.setItem('img-dim', sizeDim.value); localStorage.setItem('img-size', sizeN.value); } catch (e) {} }
     sizeDim.addEventListener('change', rememberSize); sizeN.addEventListener('change', rememberSize);

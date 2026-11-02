@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/hbroek/wako/internal/render"
 	"github.com/hbroek/wako/internal/store"
 )
 
@@ -37,17 +38,28 @@ func remotePictures(t *testing.T) (base string, hits *atomic.Int64) {
 	return srv.URL, hits
 }
 
+// resizeLink signs the address of a copy the way the renderer does.
 func (e *propEnv) resizeLink(img string, size map[string]int, who ...reqOpt) (int, string) {
 	e.t.Helper()
-	body := map[string]any{"img": img, "space": "main"}
-	for k, v := range size {
-		body[k] = v
+	dim, n := byte('w'), size["w"]
+	if size["h"] > 0 {
+		dim, n = 'h', size["h"]
 	}
-	b, _ := json.Marshal(body)
-	rec := e.do("POST", "/_api/resize/link", string(b), append(who, header("Content-Type", "application/json"))...)
-	var out struct{ URL, Alt string }
-	json.Unmarshal(rec.Body.Bytes(), &out)
-	return rec.Code, out.URL
+	return 200, e.srv.resizeURL("main", dim, n, img)
+}
+
+// pageHTML renders a page body as a reader of the space sees it.
+func (e *propEnv) pageHTML(body string) string {
+	e.t.Helper()
+	sp, err := e.st.GetSpace("main")
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	out, err := e.srv.renderPage(httptest.NewRequest("GET", "/main/", nil), sp, "", body, nil, false)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return out
 }
 
 func TestResizeServesSignedCopiesOfOutsidePictures(t *testing.T) {
@@ -55,20 +67,6 @@ func TestResizeServesSignedCopiesOfOutsidePictures(t *testing.T) {
 	e.srv.allowPrivateFetch = true // the "other site" is on this machine
 	remote, hits := remotePictures(t)
 
-	// Only a signed-in member can make a link, and only for an http(s) address.
-	if code, _ := e.resizeLink(remote+"/land.jpg", map[string]int{"w": 60}); code != 401 {
-		t.Errorf("anonymous: %d", code)
-	}
-	for _, bad := range []string{"", "ftp://x/y.jpg", "javascript:alert(1)", "https://user:pw@example.com/a.jpg", "/etc/passwd"} {
-		if code, _ := e.resizeLink(bad, map[string]int{"w": 60}, e.ed); code != 400 {
-			t.Errorf("%q: %d", bad, code)
-		}
-	}
-	for _, size := range []map[string]int{{"w": 61}, {"h": 99999}, {"w": 60, "h": 60}, {}} {
-		if code, _ := e.resizeLink(remote+"/land.jpg", size, e.ed); code != 400 {
-			t.Errorf("size %v: %d", size, code)
-		}
-	}
 	code, link := e.resizeLink(remote+"/land.jpg", map[string]int{"w": 60}, e.ed)
 	if code != 200 || !strings.HasPrefix(link, "/_resize?") || !strings.Contains(link, "sig=") {
 		t.Fatalf("link: %d %q", code, link)
@@ -139,10 +137,11 @@ func TestResizeServesSignedCopiesOfOutsidePictures(t *testing.T) {
 func TestResizeNeverReachesThisMachineOrItsNetwork(t *testing.T) {
 	e := newPropEnv(t)
 	remote, hits := remotePictures(t) // on 127.0.0.1
+	sp, _ := e.st.GetSpace("main")
 	for _, addr := range []string{remote + "/land.jpg", "http://127.0.0.1/x.jpg", "http://[::1]/x.jpg", "http://10.0.0.5/x.jpg",
-		"http://192.168.1.1/x.jpg", "http://169.254.169.254/latest/meta-data", "http://100.64.0.1/x.jpg", "http://[fe80::1]/x.jpg", "http://0.0.0.0/x.jpg"} {
-		if code, _ := e.resizeLink(addr, map[string]int{"w": 60}, e.ed); code != 400 {
-			t.Errorf("%s: link made (%d)", addr, code)
+		"http://192.168.1.1/x.jpg", "http://169.254.169.254/latest/meta-data/a.jpg", "http://100.64.0.1/x.jpg", "http://[fe80::1]/x.jpg", "http://0.0.0.0/x.jpg"} {
+		if l, ok := e.srv.externalResizer(sp)(addr, render.Size{W: 60}); ok {
+			t.Errorf("%s: link made (%s)", addr, l)
 		}
 	}
 	// Even a correctly signed link to a name that resolves here is refused when it is fetched.
@@ -151,6 +150,24 @@ func TestResizeNeverReachesThisMachineOrItsNetwork(t *testing.T) {
 	e.srv.allowPrivateFetch = false
 	if r := e.do("GET", l, ""); r.Code != 502 || hits.Load() != 0 {
 		t.Errorf("a name for this machine: %d, %d requests reached it", r.Code, hits.Load())
+	}
+}
+
+func TestPicturesOnOtherSitesAreResizedWhenAPageIsShown(t *testing.T) {
+	e := newPropEnv(t)
+	got := e.pageHTML("![a](https://example.com/photo.jpg#w=600) ![b](https://example.com/p.PNG#h=240) ![c](https://example.com/logo.svg#w=400) " +
+		"![d](https://example.com/photo.jpg#w=601) ![e](https://example.com/photo#w=600) ![f](http://127.0.0.1/p.jpg#w=600)")
+	if strings.Count(got, "/_resize?") != 2 || !strings.Contains(got, "w=600") || !strings.Contains(got, "h=240") {
+		t.Errorf("copies: %s", got)
+	}
+	// Each resized picture links to the original; the others are shown at the size asked for.
+	for _, want := range []string{`<a href="https://example.com/photo.jpg"`, `src="https://example.com/logo.svg"`, `width="400"`, `src="https://example.com/photo.jpg"`, `src="http://127.0.0.1/p.jpg"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %s", want, got)
+		}
+	}
+	if strings.Contains(got, "#w=") || strings.Contains(got, "#h=") {
+		t.Errorf("a size fragment is left: %s", got)
 	}
 }
 
@@ -187,10 +204,6 @@ func TestResizeSwitches(t *testing.T) {
 	if r := e.do("GET", strings.Replace(link, "space=main", "space=other", 1), ""); r.Code != 403 {
 		t.Errorf("moved to another space: %d", r.Code)
 	}
-	body, _ := json.Marshal(map[string]any{"space": "other", "img": remote + "/land.jpg", "w": 60})
-	if r := e.do("POST", "/_api/resize/link", string(body), e.ed, header("Content-Type", "application/json")); r.Code != 403 {
-		t.Errorf("a viewer made a link: %d", r.Code)
-	}
 
 	// The space's switch: space administrators set it (editors cannot), and the editor, the link maker and the address all follow.
 	set := func(who reqOpt, on bool) int {
@@ -207,8 +220,8 @@ func TestResizeSwitches(t *testing.T) {
 	if code := set(rootT, false); code != 200 {
 		t.Fatalf("an administrator switching it off: %d", code)
 	}
-	if code, _ := e.resizeLink(remote+"/pic.png", map[string]int{"w": 60}, e.ed); code != 403 {
-		t.Errorf("a link was made with the space switch off: %d", code)
+	if got := e.pageHTML("![a](" + remote + "/pic.png#w=60)"); strings.Contains(got, "_resize") {
+		t.Errorf("a link was made with the space switch off: %s", got)
 	}
 	if r := e.do("GET", link, ""); r.Code != 403 || !strings.Contains(r.Body.String(), "this space") {
 		t.Errorf("an existing link with the space switch off: %d %s", r.Code, r.Body.String())
@@ -226,8 +239,8 @@ func TestResizeSwitches(t *testing.T) {
 	// The server's switch beats the space's.
 	hitsBefore := hits.Load()
 	e.srv.ExternalResize = false
-	if code, _ := e.resizeLink(remote+"/pic.png", map[string]int{"w": 60}, e.ed); code != 403 {
-		t.Errorf("a link was made with the server switch off: %d", code)
+	if got := e.pageHTML("![a](" + remote + "/pic.png#w=60)"); strings.Contains(got, "_resize") {
+		t.Errorf("a link was made with the server switch off: %s", got)
 	}
 	if r := e.do("GET", link, ""); r.Code != 403 || !strings.Contains(r.Body.String(), "this server") {
 		t.Errorf("an existing link with the server switch off: %d %s", r.Code, r.Body.String())
