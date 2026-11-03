@@ -531,3 +531,18 @@ func TestScaleKeepsProfileAndType(t *testing.T) {
 		t.Errorf("gif must not be scalable: %v", err)
 	}
 }
+
+func TestPDFsHaveTheirOwnStoredLimit(t *testing.T) {
+	pdf := append([]byte("%PDF-1.4\n"), make([]byte, 7<<20)...) // over the 5 MiB image limit, under the 10 MiB PDF limit
+	if _, err := Process(pdf, "application/pdf", DefaultLimits); err != nil {
+		t.Fatalf("7 MiB pdf: %v", err)
+	}
+	if _, err := Process(append(pdf, make([]byte, 4<<20)...), "application/pdf", DefaultLimits); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("11 MiB pdf: %v", err)
+	}
+	lim := DefaultLimits
+	lim.MaxPDF = 0 // falls back to the image limit
+	if _, err := Process(pdf, "application/pdf", lim); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("pdf without own limit: %v", err)
+	}
+}

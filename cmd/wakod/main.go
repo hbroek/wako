@@ -137,7 +137,7 @@ func serve(cfg *config.Config) int {
 			"note", "off for every space until a server administrator switches them on in the space's settings")
 	}
 	wiki.ImageLimits = img.Limits{
-		MaxPixels: int(cfg.MaxMpix) * 1_000_000, MaxSide: cfg.MaxSide, MaxStored: int(cfg.MaxStored) << 20,
+		MaxPixels: int(cfg.MaxMpix) * 1_000_000, MaxSide: cfg.MaxSide, MaxStored: int(cfg.MaxStored) << 20, MaxPDF: int(cfg.MaxPDF) << 20,
 		MaxFrames: img.DefaultLimits.MaxFrames, Mode: img.Compact,
 	}
 	wiki.ExternalResize = cfg.ExternalResize

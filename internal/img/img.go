@@ -43,12 +43,13 @@ type Limits struct {
 	MaxPixels int // decoded pixels; stops a small file unpacking into a huge bitmap
 	MaxSide   int // longest side after Compact
 	MaxStored int // bytes kept after processing
+	MaxPDF    int // bytes kept of a PDF, which is stored as uploaded; 0 means MaxStored
 	MaxFrames int // GIF frames
 	Mode      Mode
 }
 
 // DefaultLimits are the limits used when none are configured.
-var DefaultLimits = Limits{MaxPixels: 24_000_000, MaxSide: 1600, MaxStored: 5 << 20, MaxFrames: 300}
+var DefaultLimits = Limits{MaxPixels: 24_000_000, MaxSide: 1600, MaxStored: 5 << 20, MaxPDF: 10 << 20, MaxFrames: 300}
 
 // Result is a processed image ready to store.
 type Result struct {
@@ -87,8 +88,12 @@ func Process(data []byte, mime string, lim Limits) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if lim.MaxStored > 0 && len(res.Data) > lim.MaxStored {
-		return nil, fmt.Errorf("%w (%d bytes, limit %d)", ErrTooLarge, len(res.Data), lim.MaxStored)
+	max := lim.MaxStored
+	if mime == "application/pdf" && lim.MaxPDF > 0 {
+		max = lim.MaxPDF
+	}
+	if max > 0 && len(res.Data) > max {
+		return nil, fmt.Errorf("%w (%d bytes, limit %d)", ErrTooLarge, len(res.Data), max)
 	}
 	return res, nil
 }
