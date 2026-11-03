@@ -58,7 +58,7 @@ input[type=text],input[type=password],input:not([type]),input[type=search],selec
 .spacelist{line-height:2}
 
 .editor .bar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.5rem}
-.editor h1{font-size:1.15rem;margin:0}
+.editor .bar h1{font-size:1.15rem;margin:0}
 .panes{display:grid;grid-template-columns:1fr 1fr;gap:1rem;height:calc(100vh - 11rem);min-height:20rem}
 .panes textarea{width:100%;height:100%;resize:none;font:14px/1.5 ui-monospace,SFMono-Regular,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:.6rem}
 .panes .preview{overflow:auto;border:1px solid var(--line);border-radius:6px;padding:0 1rem}
@@ -145,7 +145,7 @@ body:has(#assist) .panes{height:calc(100vh - 14.5rem)}
 .cheat .hint{margin:.25rem 0 .1rem}
 
 /* Focus: just the editor. */
-body.focus header.top,body.focus #nav,body.focus .crumbs,body.focus .assist,body.focus .cheat,body.focus .editor h1,
+body.focus header.top,body.focus #nav,body.focus .crumbs,body.focus .assist,body.focus .cheat,body.focus .editor .bar h1,
 body.focus .tabs,body.focus #media-btn,body.focus .panes .preview{display:none}
 body.focus .shell{min-height:100vh}
 body.focus .editor .bar,body.focus .panes{max-width:50rem;margin-left:auto;margin-right:auto}
