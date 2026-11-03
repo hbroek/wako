@@ -132,7 +132,7 @@ func Parse(args []string) (*Config, error) {
 	fs.StringVar(&c.AIKey, "ai-key", env("WAKO_AI_KEY", ""), "API key of that service (prefer the WAKO_AI_KEY environment variable: a flag shows in the process list)")
 	fs.StringVar(&c.AIModel, "ai-model", env("WAKO_AI_MODEL", ""), "model name (default: a current model of the provider)")
 	fs.StringVar(&c.AIURL, "ai-url", env("WAKO_AI_URL", ""), "address of the service when it is not the provider's own, e.g. http://localhost:11434/v1")
-	fs.IntVar(&c.AIMaxTokens, "ai-max-tokens", int(envInt("WAKO_AI_MAX_TOKENS", 2048)), "longest answer or draft, in tokens")
+	fs.IntVar(&c.AIMaxTokens, "ai-max-tokens", int(envInt("WAKO_AI_MAX_TOKENS", 32768)), "longest answer or draft, in tokens")
 	aiTimeout := env("WAKO_AI_TIMEOUT", "90s")
 	fs.StringVar(&aiTimeout, "ai-timeout", aiTimeout, "how long to wait for the model, e.g. 90s")
 	fs.IntVar(&c.AIPerHour, "ai-requests-per-hour", int(envInt("WAKO_AI_REQUESTS_PER_HOUR", 30)), "AI requests each user may make per hour")

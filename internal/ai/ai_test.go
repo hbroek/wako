@@ -111,7 +111,7 @@ func TestAnthropicProvider(t *testing.T) {
 	if res.Text != "Hello there" || res.InputTokens != 12 || res.OutputTokens != 3 || !res.Truncated || res.Model != "claude-x" {
 		t.Errorf("result: %+v", res)
 	}
-	if gotKey != "sk-secret" || gotVersion == "" || body["system"] != "sys" || body["model"] != "claude-x" || body["max_tokens"].(float64) != 2048 {
+	if gotKey != "sk-secret" || gotVersion == "" || body["system"] != "sys" || body["model"] != "claude-x" || body["max_tokens"].(float64) != 32768 {
 		t.Errorf("request: key=%q version=%q body=%v", gotKey, gotVersion, body)
 	}
 }

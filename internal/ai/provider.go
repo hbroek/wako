@@ -102,7 +102,7 @@ func New(c Config) (Provider, error) {
 		c.Timeout = 90 * time.Second
 	}
 	if c.MaxTokens <= 0 {
-		c.MaxTokens = 2048
+		c.MaxTokens = 32768
 	}
 	if c.Client == nil {
 		c.Client = &http.Client{Timeout: c.Timeout}
