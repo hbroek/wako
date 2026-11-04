@@ -85,6 +85,7 @@ until the new one is up. Data is in the volume, so nothing is lost.
 |---|---|
 | Sign-in does nothing, or the page reloads | `WAKO_TRUSTED_PROXIES` is missing or does not include the proxy's network |
 | `421 Misdirected Request` | the address in the browser is not the one in `WAKO_PUBLIC_URL`; fix the variable or the domain |
+| A large upload fails with `internal error`, log says `disk I/O error (6410)` | SQLite found no writable temporary folder. Current versions use `/data/tmp` on their own; with an older one set `SQLITE_TMPDIR=/data` |
 | Container restarts, log says `unable to open database file` | `/data` is a bind mount owned by root; use a volume |
 | Log says a space's database file is missing | the volume was replaced or emptied; restore a backup, or `wakod forget-space SLUG` |
 | Uploads of large images or imports fail with 413 | a proxy limit; wako allows 25 MB images and 256 MB imports by default |

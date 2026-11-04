@@ -751,3 +751,25 @@ func TestTreeCacheSeesReorder(t *testing.T) {
 		t.Fatal("the cached tree ignores a reorder")
 	}
 }
+
+func TestTempFilesGoToTheDataDirectory(t *testing.T) {
+	t.Setenv("SQLITE_TMPDIR", "") // as if unset
+	os.Unsetenv("SQLITE_TMPDIR")
+	dir := t.TempDir()
+	st, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if got, want := os.Getenv("SQLITE_TMPDIR"), filepath.Join(dir, "tmp"); got != want {
+		t.Fatalf("SQLITE_TMPDIR = %q, want %q", got, want)
+	}
+	sp, err := st.CreateSpace("main", "Main", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	big := append([]byte("%PDF-1.4\n"), make([]byte, 9<<20)...) // well past SQLite's in-memory spill size
+	if _, _, err := sp.PutAsset("big.pdf", "application/pdf", big, 0, 0); err != nil {
+		t.Fatalf("large asset: %v", err)
+	}
+}

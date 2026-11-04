@@ -120,11 +120,29 @@ func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "spaces"), 0o700); err != nil {
 		return nil, err
 	}
+	useDataDirForTempFiles(dir)
 	cat, err := openDB(filepath.Join(dir, "wako.db"), catalogMigrations)
 	if err != nil {
 		return nil, err
 	}
 	return &Store{dir: dir, catalog: cat, dbs: map[int64]*sql.DB{}, Quota: DefaultQuota, RevisionWindow: 10 * time.Minute, RevisionKeep: 100, Now: time.Now}, nil
+}
+
+// useDataDirForTempFiles points SQLite's temporary files at dir/tmp unless
+// SQLITE_TMPDIR is set. A write over about 64 KB (a large upload) spills into a
+// temporary file, and in a container with no writable /tmp that fails with
+// "disk I/O error (6410)". The data directory is known to be writable. It has
+// to happen before the first database is opened: the SQLite library reads the
+// environment once.
+func useDataDirForTempFiles(dir string) {
+	if os.Getenv("SQLITE_TMPDIR") != "" {
+		return
+	}
+	tmp := filepath.Join(dir, "tmp")
+	os.RemoveAll(tmp) // leftovers of a crash; SQLite deletes its own files when done
+	if os.MkdirAll(tmp, 0o700) == nil {
+		os.Setenv("SQLITE_TMPDIR", tmp)
+	}
 }
 
 func (s *Store) Close() error {
