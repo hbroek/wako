@@ -561,19 +561,32 @@
     $('#conflict-keep').addEventListener('click', function () { panel.hidden = true; });
 
     // ---- images: paste, drop or pick a file; it is uploaded and linked ----
-    function insertAtCursor(text) {
+    // Where the cursor was when the picture was pasted or dropped, so text typed while it uploads
+    // does not move it; if the text changed meanwhile, the current cursor is used.
+    function cursorNow() { return { s: src.selectionStart, e: src.selectionEnd, v: src.value }; }
+    function insertAtCursor(text, at) {
       var s = src.selectionStart, e = src.selectionEnd;
+      if (at && at.v === src.value) { s = at.s; e = at.e; }
       src.setRangeText(text, s, e, 'end');
       src.dispatchEvent(new Event('input'));
     }
-    function upload(file) {
+    // A pasted screenshot is called "image.png" (or nothing); give it a name that tells pictures apart.
+    function uploadName(file) {
+      var n = file.name || '';
+      if (n && !/^image\.[a-z0-9]+$/i.test(n)) return n;
+      var d = new Date(), z = function (v) { return (v < 10 ? '0' : '') + v; };
+      var ext = (/^image\/(jpeg|png|gif|webp|svg\+xml)$/.exec(file.type) || [0, 'png'])[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+      return 'pasted-' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()) + '.' + ext;
+    }
+    function upload(file, at) {
       if (!file || !isAttachable(file)) { say('Only image and PDF files can be added.', true); return Promise.resolve(); }
-      say('Uploading ' + (file.name || 'image') + '…');
-      return api('POST', base + '/' + space + '/_assets?name=' + encodeURIComponent(file.name || 'image'), {
+      var name = uploadName(file);
+      say('Uploading ' + name + '…');
+      return api('POST', base + '/' + space + '/_assets?name=' + encodeURIComponent(name), {
         headers: { 'Content-Type': file.type }, body: file
       }).then(function (r) {
         if (!r.ok) return reason(r).then(function (m) { say('Upload failed: ' + m, true); });
-        return r.json().then(function (a) { insertImage(a.name); say('Added: ' + a.name); });
+        return r.json().then(function (a) { insertImage(a.name, at); say('Added: ' + a.name); });
       }, function () { say('Upload failed: network error', true); });
     }
     // Markdown refers to a library image by its bare name; the page binds it on save.
@@ -582,11 +595,11 @@
     try { sizeDim.value = localStorage.getItem('img-dim') || 'w'; sizeN.value = localStorage.getItem('img-size') || ''; } catch (e) {}
     function isPDF(f) { return f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''); }
     function isAttachable(f) { return f.type.indexOf('image/') === 0 || isPDF(f); }
-    function insertImage(name) {
+    function insertImage(name, at) {
       var label = name.replace(/\.[^.]+$/, '');
-      if (/\.pdf$/i.test(name)) { insertAtCursor('[' + label + '](' + name + ')\n'); return; } // a PDF is a link, not a picture
+      if (/\.pdf$/i.test(name)) { insertAtCursor('[' + label + '](' + name + ')\n', at); return; } // a PDF is a link, not a picture
       var size = dlg.open && sizeN.value ? '#' + sizeDim.value + '=' + sizeN.value : '';
-      insertAtCursor('![' + label + '](' + name + size + ')\n');
+      insertAtCursor('![' + label + '](' + name + size + ')\n', at);
     }
     // A picture on another site goes in by its address with the size on the end, like a library picture:
     // ![name](https://example.com/photo.jpg#w=800). The server makes the smaller copy when the page is shown.
@@ -602,19 +615,27 @@
     });
     function rememberSize() { try { localStorage.setItem('img-dim', sizeDim.value); localStorage.setItem('img-size', sizeN.value); } catch (e) {} }
     sizeDim.addEventListener('change', rememberSize); sizeN.addEventListener('change', rememberSize);
+    // Some browsers (Safari, Firefox) put a copied picture in the clipboard's items but not in its files.
     function files(dt) {
-      return Array.prototype.filter.call(dt && dt.files || [], isAttachable);
+      var list = Array.prototype.slice.call(dt && dt.files || []);
+      if (!list.length && dt && dt.items) {
+        Array.prototype.forEach.call(dt.items, function (it) {
+          var f = it.kind === 'file' && it.getAsFile();
+          if (f) list.push(f);
+        });
+      }
+      return list.filter(isAttachable);
     }
     src.addEventListener('paste', function (e) {
       var imgs = files(e.clipboardData);
       if (!imgs.length) return; // plain text paste
-      e.preventDefault(); imgs.forEach(upload);
+      e.preventDefault(); var at = cursorNow(); imgs.forEach(function (f) { upload(f, at); });
     });
     src.addEventListener('dragover', function (e) { if (e.dataTransfer && e.dataTransfer.types.indexOf('Files') >= 0) e.preventDefault(); });
     src.addEventListener('drop', function (e) {
       var imgs = files(e.dataTransfer);
       if (!imgs.length) return;
-      e.preventDefault(); imgs.forEach(upload);
+      e.preventDefault(); var at = cursorNow(); imgs.forEach(function (f) { upload(f, at); });
     });
     var dlg = $('#media'), grid = $('#media-grid'), q = $('#media-q'), pick = $('#pick'), qTimer = null;
     function loadLibrary() {
@@ -639,7 +660,7 @@
     $('#media-btn').addEventListener('click', function () { dlg.showModal(); loadLibrary(); q.focus(); });
     q.addEventListener('input', function () { clearTimeout(qTimer); qTimer = setTimeout(loadLibrary, 200); });
     pick.addEventListener('change', function () {
-      Promise.all(Array.prototype.map.call(pick.files, upload)).then(function () { pick.value = ''; dlg.close(); src.focus(); });
+      Promise.all(Array.prototype.map.call(pick.files, function (f) { return upload(f); })).then(function () { pick.value = ''; dlg.close(); src.focus(); });
     });
 
     function wrap(mark) {
