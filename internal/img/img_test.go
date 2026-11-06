@@ -546,3 +546,13 @@ func TestPDFsHaveTheirOwnStoredLimit(t *testing.T) {
 		t.Fatalf("pdf without own limit: %v", err)
 	}
 }
+
+func TestTooLargeMessageIsInMegabytes(t *testing.T) {
+	lim := DefaultLimits
+	lim.MaxPDF = 1 << 20
+	pdf := append([]byte("%PDF-1.4\n"), make([]byte, 3<<20)...)
+	_, err := Process(pdf, "application/pdf", lim)
+	if !errors.Is(err, ErrTooLarge) || err.Error() != "PDF is too large (3.0 MB, limit 1.0 MB)" {
+		t.Fatalf("got %v", err)
+	}
+}

@@ -38,6 +38,21 @@ const (
 	Original
 )
 
+// tooLarge is ErrTooLarge with the sizes in MiB, which people can read.
+type tooLarge struct {
+	pdf       bool
+	size, max int
+}
+
+func (e tooLarge) Is(target error) bool { return target == ErrTooLarge }
+func (e tooLarge) Error() string {
+	what := "image is too large even after compaction"
+	if e.pdf {
+		what = "PDF is too large"
+	}
+	return fmt.Sprintf("%s (%.1f MB, limit %.1f MB)", what, float64(e.size)/(1<<20), float64(e.max)/(1<<20))
+}
+
 // Limits bound what Process accepts and stores.
 type Limits struct {
 	MaxPixels int // decoded pixels; stops a small file unpacking into a huge bitmap
@@ -93,7 +108,7 @@ func Process(data []byte, mime string, lim Limits) (*Result, error) {
 		max = lim.MaxPDF
 	}
 	if max > 0 && len(res.Data) > max {
-		return nil, fmt.Errorf("%w (%d bytes, limit %d)", ErrTooLarge, len(res.Data), max)
+		return nil, tooLarge{mime == "application/pdf", len(res.Data), max}
 	}
 	return res, nil
 }
