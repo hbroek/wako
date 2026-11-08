@@ -1,6 +1,6 @@
-:root{color-scheme:light;--bg:#fff;--bg2:#f5f6f8;--fg:#1d2127;--muted:#667085;--line:#dde1e6;--accent:#2563eb;--accent-fg:#fff;--danger:#c0392b;--drop:#2563eb33}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#14171c;--bg2:#1b1f26;--fg:#e4e7eb;--muted:#9aa3b2;--line:#2a2f37;--accent:#7aa2ff;--accent-fg:#10141a;--danger:#ff7b6b;--drop:#7aa2ff33}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#14171c;--bg2:#1b1f26;--fg:#e4e7eb;--muted:#9aa3b2;--line:#2a2f37;--accent:#7aa2ff;--accent-fg:#10141a;--danger:#ff7b6b;--drop:#7aa2ff33}
+:root{color-scheme:light;--bg:#fff;--bg2:#f5f6f8;--fg:#1d2127;--muted:#667085;--line:#dde1e6;--accent:#2563eb;--accent-fg:#fff;--danger:#c0392b;--drop:#2563eb33;--h2:#4338ca;--h3:#a21caf;--h-line:#4338ca33;--h-grad:linear-gradient(90deg,#4f46e5,#c026d3,#f97316)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#14171c;--bg2:#1b1f26;--fg:#e4e7eb;--muted:#9aa3b2;--line:#2a2f37;--accent:#7aa2ff;--accent-fg:#10141a;--danger:#ff7b6b;--drop:#7aa2ff33;--h2:#a5b4fc;--h3:#e879f9;--h-line:#a5b4fc40}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#14171c;--bg2:#1b1f26;--fg:#e4e7eb;--muted:#9aa3b2;--line:#2a2f37;--accent:#7aa2ff;--accent-fg:#10141a;--danger:#ff7b6b;--drop:#7aa2ff33;--h2:#a5b4fc;--h3:#e879f9;--h-line:#a5b4fc40}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,sans-serif}
 a{color:var(--accent)}
@@ -45,6 +45,15 @@ input[type=text],input[type=password],input:not([type]),input[type=search],selec
 .doc{max-width:48rem;overflow-wrap:anywhere}
 .doc img{height:auto;max-width:min(100%,calc(85vh * var(--r,100)))}
 .doc img[style*="--h"]{height:var(--h);width:auto;object-fit:contain}
+/* Headings: a full-width line under H1 (a gradient) and H2 (a hairline), colour on H2 and H3. */
+.doc h1,.doc h2,.doc h3,.doc h4,.doc h5,.doc h6{line-height:1.2;margin:1.75em 0 .6em}
+.doc h1{font-size:2.25rem;padding-bottom:.45rem;border-bottom:3px solid;border-image:var(--h-grad) 1}
+.doc h2{font-size:1.7rem;color:var(--h2);padding-bottom:.4rem;border-bottom:1px solid var(--h-line)}
+.doc h3{font-size:1.35rem;color:var(--h3)}
+.doc h4{font-size:1.15rem}
+.doc h5{font-size:1rem}
+.doc h6{font-size:.9rem;color:var(--muted)}
+.doc>:first-child{margin-top:0}
 .doc pre{overflow:auto;padding:.75rem;background:var(--bg2);border-radius:6px}
 .doc code{font-size:.9em}
 .doc li:has(>.task){list-style:none;margin-left:-1.3em}
@@ -98,7 +107,7 @@ dialog.media{max-width:44rem;width:calc(100% - 2rem);max-height:85vh;overflow:au
 
 .search{margin:0 .25rem} .search input{width:11rem;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:.25rem .5rem}
 .doc a.missing{color:var(--danger);text-decoration:underline dotted}
-.backlinks{margin-top:2rem;padding-top:.5rem;border-top:1px solid var(--line);max-width:48rem} .backlinks h2{font-size:1rem;color:var(--muted)}
+.backlinks{margin-top:2rem;padding-top:.5rem;border-top:1px solid var(--line);max-width:48rem} .backlinks h2{font-size:1rem;color:var(--muted);border:0;padding:0;margin:1rem 0 .4rem}
 .results{list-style:none;padding:0;margin:.5rem 0} .results li{padding:.35rem .5rem;border-radius:6px}
 .results li.sel{background:var(--drop)} .results a{text-decoration:none;font-weight:600}
 .results .snippet{margin:.1rem 0 0;color:var(--muted);font-size:.9rem;overflow-wrap:anywhere}
@@ -112,7 +121,7 @@ table.plain td{padding:.25rem .5rem .25rem 0;border:0} #users td,#users th{text-
 #tok-secret code{overflow-wrap:anywhere;user-select:all}
 
 .banner{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:.5rem .75rem;margin:.5rem 0;max-width:60rem}
-.banner.conflict{border-left-color:var(--danger)} .banner h2{font-size:1rem;margin:.1rem 0}
+.banner.conflict{border-left-color:var(--danger)} .banner h2{font-size:1rem;margin:.1rem 0;border:0;padding:0;color:inherit}
 table.history{border-collapse:collapse;width:100%} table.history th,table.history td{text-align:left;padding:.3rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 table.history tr.current{background:var(--drop)} table.history td.acts{white-space:nowrap}
 table.diff{border-collapse:collapse;width:100%;font:13px/1.45 ui-monospace,SFMono-Regular,monospace;margin:.5rem 0}
@@ -162,6 +171,9 @@ body.focus .panes textarea{display:block!important;font-size:16px;line-height:1.
   .shell,.content{display:block;padding:0;margin:0;overflow:visible;height:auto}
   main.doc{max-width:none;padding:0;margin:0}
   h1,h2,h3,h4{break-after:avoid}
+  .doc h1{border-image:none;border-bottom:2px solid #000}
+  .doc h2,.doc h3{color:#000}
+  .doc h2{border-bottom-color:#bbb}
   pre,table,blockquote,img,tr{break-inside:avoid}
   pre{white-space:pre-wrap;border:1px solid #bbb}
   img{max-width:100%}
