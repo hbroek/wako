@@ -21,6 +21,7 @@
 {{if .Space}}<a class="btn" href="{{.Base}}/{{.Space.Slug}}/_assets/" title="Media library">Media</a>{{end}}
 {{if and .Space .CanManage}}<a class="btn" href="{{.Base}}/{{.Space.Slug}}/?settings">Settings</a>{{end}}
 {{if .AuthOn}}{{if .User}}<a class="btn" href="{{.Base}}/_ui/account" title="Account">{{.User}}</a>{{if .IsAdmin}}<a class="btn" href="{{.Base}}/_ui/users">Users</a>{{end}}<button id="logout" type="button">Sign out</button>{{else}}<a class="btn" href="{{.Base}}/_ui/login?next={{.Next | urlquery}}">Sign in</a>{{end}}{{end}}
+<button id="imgplace" type="button" aria-label="Picture placement" title="Picture placement: as written"></button>
 <button id="theme" type="button" title="Toggle dark mode">◐</button>
 </header>
 <div class="shell">

@@ -279,3 +279,17 @@ func TestSettingsPageOffersExportAndImport(t *testing.T) {
 		t.Error("script lacks the import form")
 	}
 }
+
+func TestPicturePlacementButton(t *testing.T) {
+	e := newEnv(t)
+	page := expect(t, e.do("GET", "/main/?settings", "", "Accept", "text/html"), 200)
+	if !strings.Contains(page, `id="imgplace"`) {
+		t.Error("top bar lacks the picture placement button")
+	}
+	if js := expect(t, e.do("GET", "/_ui/theme.js", ""), 200); !strings.Contains(js, "img-place") {
+		t.Error("theme.js does not restore the remembered placement")
+	}
+	if css := expect(t, e.do("GET", "/_ui/app.css", ""), 200); !strings.Contains(css, "data-img=left") || !strings.Contains(css, "data-img=center") {
+		t.Error("stylesheet lacks the placement rules")
+	}
+}

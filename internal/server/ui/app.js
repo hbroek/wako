@@ -34,6 +34,36 @@
     root.dataset.theme = dark ? 'light' : 'dark';
     try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
   });
+  // Picture placement: each click picks the next of as written, left, right, centred. The page looks it up
+  // on <html data-img>, which theme.js has already set from the remembered choice.
+  (function () {
+    var btn = $('#imgplace'); if (!btn) return;
+    var root = document.documentElement;
+    var modes = ['', 'left', 'right', 'center'];
+    var names = { '': 'as written', left: 'floated left', right: 'floated right', center: 'centred' };
+    var box = '<rect x="1.5" y="3" width="6" height="6" rx="1"/>';
+    var lines = function (x1, x2, ys) { return ys.map(function (y) { return '<path d="M' + x1 + ' ' + y + 'H' + x2 + '"/>'; }).join(''); };
+    var icons = {
+      '': '<rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M2 11l3.5-3.5 3 3 2-2L14 12"/>',
+      left: box + lines(10, 14.5, [4, 7, 10, 13]) + lines(1.5, 7.5, [12, 14]),
+      right: '<rect x="8.5" y="3" width="6" height="6" rx="1"/>' + lines(1.5, 6, [4, 7, 10, 13]) + lines(8.5, 14.5, [12, 14]),
+      center: '<rect x="4.5" y="4" width="7" height="5" rx="1"/>' + lines(1.5, 14.5, [1.5, 11.5, 14])
+    };
+    function show() {
+      var m = root.dataset.img || '';
+      if (modes.indexOf(m) < 0) m = '';
+      btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + icons[m] + '</svg>';
+      btn.title = 'Picture placement: ' + names[m] + ' (click for the next)';
+    }
+    btn.addEventListener('click', function () {
+      var m = root.dataset.img || '';
+      m = modes[(modes.indexOf(m) + 1) % modes.length];
+      if (m) root.dataset.img = m; else delete root.dataset.img;
+      try { localStorage.setItem('img-place', m); } catch (e) {}
+      show();
+    });
+    show();
+  })();
   var toggle = $('#navtoggle');
   // Small screens slide the tree in as a drawer; wider ones hide it for good (remembered).
   function toggleNav() {

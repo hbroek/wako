@@ -15,6 +15,7 @@ A wiki that stores plain, portable Markdown in SQLite. One static program, no ru
 - **Suggestions.** People (and programs) who may only suggest queue changes for an editor to review: a diff, accept or reject, credit to the author.
 - **AI, on your terms.** Any assistant can read and edit the wiki through MCP; you can ask the wiki questions and have pages drafted. Everything an assistant writes can wait for a person to approve it.
 - **PDF** through the browser: the **PDF** button opens a print view of a page and the pages below it (or the whole space) with a clean print stylesheet; choose "Save as PDF" in the print dialog.
+- **Picture placement.** A button in the top bar cycles through as written, floated left, floated right (text flows round, at most half the column wide) and centred on its own line. It changes the page and the editor preview straight away, is remembered in the browser, does not touch the Markdown, and is hidden on phone-width screens, where a float leaves no room.
 - **A calm editor.** Hide the page tree with ☰ (Ctrl+Shift+E; remembered), a collapsed Markdown cheatsheet sits under the editor, and **Focus** (Ctrl+Shift+Enter, Esc leaves) shows nothing but the text.
 - **Export and import** as a zip of ordinary `.md` files and images, plus a `wako` command-line client.
 
