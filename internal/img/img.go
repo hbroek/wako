@@ -64,7 +64,7 @@ type Limits struct {
 }
 
 // DefaultLimits are the limits used when none are configured.
-var DefaultLimits = Limits{MaxPixels: 24_000_000, MaxSide: 1600, MaxStored: 5 << 20, MaxPDF: 10 << 20, MaxFrames: 300}
+var DefaultLimits = Limits{MaxPixels: 50_000_000, MaxSide: 1600, MaxStored: 5 << 20, MaxPDF: 10 << 20, MaxFrames: 300}
 
 // Result is a processed image ready to store.
 type Result struct {

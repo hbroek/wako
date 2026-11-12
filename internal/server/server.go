@@ -79,6 +79,7 @@ func (s *Server) newData(r *http.Request, sp *store.Space, acc Access, cur, titl
 		AssetV: assetVersion, Space: sp, Path: cur, CanWrite: acc.Write, CanSuggest: acc.Suggest && !acc.Write, CanEdit: acc.Write || acc.Suggest, IsAdmin: s.isAdmin(r), CanManage: acc.Admin, AuthOn: s.auth != nil,
 		AIOn: s.AI != nil && s.aiAllowed(r), AIAvailable: s.AI != nil,
 		ResizeAvailable: s.ExternalResize, ResizeOn: s.ExternalResize && sp != nil && sp.ExternalResize,
+		ImageMaxSide: s.ImageLimits.MaxSide, ImageOriginal: s.ImageLimits.Mode == img.Original,
 	}
 	if p := s.principal(r); p != nil {
 		d.User = p.user.Name

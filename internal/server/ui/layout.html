@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="{{.Base}}/_ui/app.css?v={{.AssetV}}">
 {{if .HasLogo}}<link rel="icon" href="{{.Base}}/_ui/logo">{{else}}<link rel="icon" type="image/svg+xml" href="{{.Base}}/_ui/icon.svg?v={{.AssetV}}"><link rel="icon" type="image/png" sizes="180x180" href="{{.Base}}/_ui/apple-touch-icon.png?v={{.AssetV}}"><link rel="apple-touch-icon" href="{{.Base}}/_ui/apple-touch-icon.png?v={{.AssetV}}">{{end}}
 {{if .FeedURL}}<link rel="alternate" type="application/rss+xml" title="{{.FeedTitle}}" href="{{.FeedURL}}">{{end}}
-</head><body data-base="{{.Base}}" data-space="{{if .Space}}{{.Space.Slug}}{{end}}">
+</head><body data-base="{{.Base}}" data-space="{{if .Space}}{{.Space.Slug}}{{end}}" data-img-side="{{.ImageMaxSide}}"{{if .ImageOriginal}} data-img-original="1"{{end}}>
 <header class="top">
 {{if .Space}}<button id="navtoggle" type="button" aria-label="Toggle navigation" title="Navigation (Ctrl+Shift+E)">☰</button>{{end}}
 <a class="brand" href="{{.Base}}/"><img src="{{if .HasLogo}}{{.Base}}/_ui/logo{{else}}{{.Base}}/_ui/icon.svg?v={{.AssetV}}{{end}}" alt=""><span>{{.SiteName}}</span></a>

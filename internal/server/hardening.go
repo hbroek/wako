@@ -20,9 +20,11 @@ import (
 
 // pageCSP is the Content-Security-Policy of the HTML pages. The pages load their
 // own script and style only; markup styles (an image's aspect ratio) are allowed
-// as attributes, and images may come from this site or any HTTPS site.
+// as attributes, and images may come from this site or any HTTPS site. blob: is
+// there for the editor, which opens a picked photo from memory to shrink it
+// before uploading; only this page's own script can make such an address.
 const pageCSP = "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; " +
-	"img-src 'self' data: https:; connect-src 'self'; form-action 'self'; base-uri 'none'; " +
+	"img-src 'self' data: blob: https:; connect-src 'self'; form-action 'self'; base-uri 'none'; " +
 	"frame-ancestors 'none'; object-src 'none'"
 
 // apiCSP covers everything that is not a page (JSON, Markdown, feeds, zips).

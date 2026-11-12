@@ -81,6 +81,8 @@ type pageData struct {
 	AIAvailable     bool // ... and settings may offer the switch
 	ResizeAvailable bool // the server allows /_resize, so settings may offer the switch
 	ResizeOn        bool // ... and this space has it on, so the editor may offer it
+	ImageMaxSide    int  // longest side the server keeps; the browser shrinks pictures to it before uploading
+	ImageOriginal   bool // the server keeps pictures as they are, so the browser must not shrink them
 }
 
 // hitView is a search result for the HTML page. The HTML fields were escaped

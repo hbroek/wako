@@ -27,6 +27,56 @@
     return r.text().then(function (t) { return (t || r.statusText).trim(); });
   }
 
+  // ---- pictures are shrunk here, before they are sent ----
+  // A phone photo is several MB and can have more pixels than the server will decode. The browser scales
+  // it to the longest side the server keeps (data-img-side), so the server passes it through and only one
+  // lossy step happens. GIF (animation), SVG, PDF, pictures already small enough, and servers that keep
+  // originals are left alone. If anything goes wrong the original is sent.
+  var imgSide = parseInt(body.dataset.imgSide, 10) || 0, imgKeep = !!body.dataset.imgOriginal;
+  function loadPicture(file) {
+    return new Promise(function (ok, fail) {
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () { URL.revokeObjectURL(u); ok(im); };
+      im.onerror = function () { URL.revokeObjectURL(u); fail(new Error('cannot read the picture')); };
+      im.src = u; // the browser applies the camera's rotation; width and height are as shown
+    });
+  }
+  function canvasOf(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function scaled(im, w, h) { // halve while the target is under half the size: one big step looks jagged
+    var cur = im, cw = im.naturalWidth, ch = im.naturalHeight;
+    while (cw / 2 > w) {
+      var c = canvasOf(Math.round(cw / 2), Math.round(ch / 2)), x = c.getContext('2d');
+      x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, c.width, c.height);
+      cur = c; cw = c.width; ch = c.height;
+    }
+    var out = canvasOf(w, h), g = out.getContext('2d');
+    g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, w, h);
+    return out;
+  }
+  function prepareImage(file) {
+    var heic = /^image\/hei[cf]$/.test(file.type) || /\.hei[cf]$/i.test(file.name || '');
+    var kind = heic ? 'jpeg' : (/^image\/(jpeg|png|webp)$/.exec(file.type) || [0, ''])[1];
+    if (!imgSide || imgKeep || !kind) return Promise.resolve(file);
+    return loadPicture(file).then(function (im) {
+      var w = im.naturalWidth, h = im.naturalHeight, long = Math.max(w, h);
+      if (!w || !h || (long <= imgSide && !heic)) return file; // nothing to do
+      var f = Math.min(1, imgSide / long);
+      var cv = scaled(im, Math.max(1, Math.round(w * f)), Math.max(1, Math.round(h * f)));
+      var type = kind === 'jpeg' ? 'image/jpeg' : 'image/png'; // PNG keeps screenshots sharp and transparency
+      return new Promise(function (ok) {
+        cv.toBlob(function (blob) {
+          if (!blob || blob.type !== type) { ok(file); return; }
+          var name = (file.name || 'image').replace(/\.[^.]+$/, '') + (type === 'image/jpeg' ? '.jpg' : '.png');
+          ok(new File([blob], name, { type: type }));
+        }, type, 0.85);
+      });
+    }).catch(function (e) {
+      if (heic) throw new Error('This browser cannot read HEIC pictures. Use Safari, or export the photo as JPEG first.');
+      if (window.console) console.warn('picture sent as it is:', e);
+      return file;
+    });
+  }
+
   // ---- theme and navigation drawer ----
   $('#theme').addEventListener('click', function () {
     var root = document.documentElement;
@@ -610,14 +660,24 @@
     }
     function upload(file, at) {
       if (!file || !isAttachable(file)) { say('Only image and PDF files can be added.', true); return Promise.resolve(); }
-      var name = uploadName(file);
-      say('Uploading ' + name + '…');
-      return api('POST', base + '/' + space + '/_assets?name=' + encodeURIComponent(name), {
-        headers: { 'Content-Type': file.type }, body: file
-      }).then(function (r) {
-        if (!r.ok) return reason(r).then(function (m) { say('Upload failed: ' + m, true); });
-        return r.json().then(function (a) { insertImage(a.name, at); say('Added: ' + a.name); });
-      }, function () { say('Upload failed: network error', true); });
+      // One at a time: a decoded photo takes a lot of memory, so pictures pasted together wait their turn.
+      var turn = uploadQueue.then(function () { return send(file, at); });
+      uploadQueue = turn.catch(function () {});
+      return turn;
+    }
+    var uploadQueue = Promise.resolve();
+    function send(file, at) {
+      say('Preparing ' + (file.name || 'image') + '…');
+      return prepareImage(file).then(function (file) {
+        var name = uploadName(file);
+        say('Uploading ' + name + '…');
+        return api('POST', base + '/' + space + '/_assets?name=' + encodeURIComponent(name), {
+          headers: { 'Content-Type': file.type }, body: file
+        }).then(function (r) {
+          if (!r.ok) return reason(r).then(function (m) { say('Upload failed: ' + m, true); });
+          return r.json().then(function (a) { insertImage(a.name, at); say('Added: ' + a.name); });
+        }, function () { say('Upload failed: network error', true); });
+      }, function (e) { say('Upload failed: ' + e.message, true); });
     }
     // Markdown refers to a library image by its bare name; the page binds it on save.
     // The size picked in the library dialog goes on the name: photo.jpg#w=400 (wide) or #h=300 (high).
@@ -794,10 +854,14 @@
   if (lib) {
     var up = $('#lib-upload');
     if (up) up.addEventListener('change', function () {
-      Promise.all(Array.prototype.map.call(up.files, function (f) {
-        return api('POST', lib.dataset.url + '?name=' + encodeURIComponent(f.name), { headers: { 'Content-Type': f.type }, body: f })
-          .then(function (r) { if (!r.ok) return reason(r).then(function (m) { alert(f.name + ': ' + m); }); });
-      })).then(function () { location.reload(); });
+      var chain = Promise.resolve(); // one at a time: a decoded photo takes a lot of memory
+      Array.prototype.forEach.call(up.files, function (orig) {
+        chain = chain.then(function () { return prepareImage(orig); }).then(function (f) {
+          return api('POST', lib.dataset.url + '?name=' + encodeURIComponent(f.name), { headers: { 'Content-Type': f.type }, body: f })
+            .then(function (r) { if (!r.ok) return reason(r).then(function (m) { alert(orig.name + ': ' + m); }); });
+        }, function (e) { alert(orig.name + ': ' + e.message); });
+      });
+      chain.then(function () { location.reload(); });
     });
     var rn = $('#rename'), renaming = null;
     lib.addEventListener('click', function (e) {

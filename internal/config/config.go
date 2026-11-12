@@ -106,7 +106,7 @@ func Parse(args []string) (*Config, error) {
 	fs.Int64Var(&c.MaxStored, "max-stored-mb", envInt("WAKO_MAX_STORED_MB", 5), "largest image kept after processing, in MiB")
 	fs.Int64Var(&c.MaxPDF, "max-pdf-mb", envInt("WAKO_MAX_PDF_MB", 10), "largest PDF kept, in MiB")
 	fs.IntVar(&c.MaxSide, "image-max-side", int(envInt("WAKO_IMAGE_MAX_SIDE", 1600)), "longest side in pixels after compacting a picture")
-	fs.Int64Var(&c.MaxMpix, "image-max-mpix", envInt("WAKO_IMAGE_MAX_MPIX", 24), "most megapixels a picture may have when decoded")
+	fs.Int64Var(&c.MaxMpix, "image-max-mpix", envInt("WAKO_IMAGE_MAX_MPIX", 50), "most megapixels a picture may have when decoded")
 	fs.StringVar(&c.ImageMode, "image-mode", env("WAKO_IMAGE_MODE", "compact"), `"compact" shrinks large pictures, "original" only strips metadata`)
 	fs.Int64Var(&c.Quota, "space-quota-mb", envSigned("WAKO_SPACE_QUOTA_MB", 200), "media quota per space in MiB (negative: unlimited)")
 	fs.StringVar(&c.AdminUser, "admin-user", env("WAKO_ADMIN_USER", "admin"), "name of the administrator created on first start")

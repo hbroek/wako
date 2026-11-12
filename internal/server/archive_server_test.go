@@ -293,3 +293,11 @@ func TestPicturePlacementButton(t *testing.T) {
 		t.Error("stylesheet lacks the placement rules")
 	}
 }
+
+func TestPagesMayOpenPickedPicturesFromMemory(t *testing.T) {
+	e := newEnv(t)
+	rec := e.do("GET", "/main/?settings", "", "Accept", "text/html")
+	if csp := rec.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "img-src 'self' data: blob: https:") {
+		t.Errorf("the page policy must let the editor open a picked photo (blob:) to shrink it, got %q", csp)
+	}
+}
