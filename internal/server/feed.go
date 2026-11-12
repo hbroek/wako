@@ -162,6 +162,7 @@ type rssDoc struct {
 	Version string     `xml:"version,attr"`
 	Atom    string     `xml:"xmlns:atom,attr"`
 	DC      string     `xml:"xmlns:dc,attr"`
+	Source  string     `xml:"xmlns:source,attr"`
 	Channel rssChannel `xml:"channel"`
 }
 
@@ -190,6 +191,13 @@ type rssEntry struct {
 	Creator     string  `xml:"dc:creator,omitempty"`
 	Category    string  `xml:"category"`
 	Description string  `xml:"description"`
+	Markdown    *rssMD  `xml:"source:markdown"`
+}
+
+// rssMD is <source:markdown>. The text is escaped by hand (only & < >, so
+// quotes and line breaks stay readable) and written as it is.
+type rssMD struct {
+	Text string `xml:",innerxml"`
 }
 
 type rssGUID struct {
@@ -202,9 +210,11 @@ const (
 	excerptChars = 300
 )
 
-// entryHTML is the body of a feed entry: what happened, and for edits the diff.
-func (s *Server) entryHTML(sc spaceChange, link string, global bool) string {
+// entry is the body of a feed entry, as HTML and as Markdown: what happened,
+// and for a new page its opening, for an edit the diff.
+func (s *Server) entry(lc *linkCtx, sc spaceChange, link, origin string, global bool) (html, md string) {
 	c := sc.c
+	var m strings.Builder
 	var b strings.Builder
 	// "bob edited X" when the author is known, "Edited X" when it is not.
 	verb := map[string]string{"created": "created", "restored": "restored an earlier revision of", "moved": "moved", "deleted": "deleted"}[c.Action]
@@ -213,41 +223,55 @@ func (s *Server) entryHTML(sc spaceChange, link string, global bool) string {
 	}
 	if c.Author != "" {
 		b.WriteString("<p><strong>" + htmlpkg.EscapeString(c.Author) + "</strong> " + verb)
+		m.WriteString("**" + mdEscape(c.Author) + "** " + verb)
 	} else {
 		b.WriteString("<p>" + strings.ToUpper(verb[:1]) + verb[1:])
+		m.WriteString(strings.ToUpper(verb[:1]) + verb[1:])
 	}
 	if c.Action == "deleted" {
 		b.WriteString(" <code>/" + htmlpkg.EscapeString(c.Path) + "</code>")
+		m.WriteString(" `/" + c.Path + "`")
 	} else {
 		b.WriteString(` <a href="` + htmlpkg.EscapeString(link) + `">` + htmlpkg.EscapeString(c.Title) + `</a>`)
+		m.WriteString(" [" + mdEscape(c.Title) + "](" + link + ")")
 	}
 	if global {
 		b.WriteString(" in " + htmlpkg.EscapeString(sc.sp.Title))
+		m.WriteString(" in " + mdEscape(sc.sp.Title))
 	}
 	if c.Action == "moved" {
 		b.WriteString(" (from <code>/" + htmlpkg.EscapeString(c.OldPath) + "</code>)")
+		m.WriteString(" (from `/" + c.OldPath + "`)")
 	}
 	b.WriteString(".</p>")
+	m.WriteString(".")
 	if c.Note != "" {
 		b.WriteString("<p><em>" + htmlpkg.EscapeString(c.Note) + "</em></p>")
+		m.WriteString("\n\n*" + mdEscape(c.Note) + "*")
 	}
 	if c.PageID == 0 || (c.Action != "created" && c.Action != "edited" && c.Action != "restored") {
-		return b.String()
+		return b.String(), m.String()
 	}
 	rev, err := sc.sp.Revision(c.PageID, c.Version)
 	if err != nil {
-		return b.String() // pruned since
+		return b.String(), m.String() // pruned since
 	}
 	if c.Action == "created" {
 		text := plainExcerpt(rev.Body)
 		if text != "" {
 			b.WriteString("<blockquote>" + htmlpkg.EscapeString(text) + "</blockquote>")
 		}
-		return b.String()
+		if open, cut := markdownExcerpt(rev.Body, excerptMD); open != "" {
+			m.WriteString("\n\n" + s.feedMarkdown(lc, sc.sp, c.Path, c.PageID, open, origin))
+			if cut {
+				m.WriteString("\n\n[Read the rest](" + link + ")")
+			}
+		}
+		return b.String(), m.String()
 	}
 	prev, err := sc.sp.RevisionBefore(c.PageID, rev.Version)
 	if err != nil {
-		return b.String()
+		return b.String(), m.String()
 	}
 	patch := diff.Unified(prev.Body, rev.Body, "before", "after")
 	lines := strings.Split(strings.TrimRight(patch, "\n"), "\n")
@@ -257,8 +281,9 @@ func (s *Server) entryHTML(sc spaceChange, link string, global bool) string {
 			lines = append(lines[:previewLines], "…")
 		}
 		b.WriteString("<pre>" + htmlpkg.EscapeString(strings.Join(lines, "\n")) + "</pre>")
+		m.WriteString("\n\n" + fenced("diff", strings.Join(lines, "\n")))
 	}
-	return b.String()
+	return b.String(), m.String()
 }
 
 // feed writes the change feed as RSS 2.0. only is a space slug, or "" for
@@ -285,6 +310,7 @@ func (s *Server) feed(w http.ResponseWriter, r *http.Request, only *store.Space)
 		ch.Description = "Pages created, edited, moved and deleted in " + only.Title + "."
 		ch.Self = rssAtom{origin + s.u(only.Slug, "_feed"), "self", "application/rss+xml"}
 	}
+	lc := s.newLinkCtx(r)
 	for i, sc := range list {
 		c := sc.c
 		if i == 0 {
@@ -299,13 +325,14 @@ func (s *Server) feed(w http.ResponseWriter, r *http.Request, only *store.Space)
 		if c.Author != "" {
 			title += " by " + c.Author
 		}
+		desc, md := s.entry(lc, sc, link, origin, global)
 		ch.Items = append(ch.Items, rssEntry{
 			Title: title, Link: link, GUID: rssGUID{Value: "wako:" + sc.sp.Slug + ":" + strconv.FormatInt(c.ID, 10)},
 			PubDate: c.At.UTC().Format(time.RFC1123Z), Creator: c.Author, Category: c.Action,
-			Description: s.entryHTML(sc, link, global),
+			Description: desc, Markdown: &rssMD{xmlText(md)},
 		})
 	}
-	body, err := xml.MarshalIndent(rssDoc{Version: "2.0", Atom: "http://www.w3.org/2005/Atom", DC: "http://purl.org/dc/elements/1.1/", Channel: ch}, "", "  ")
+	body, err := xml.MarshalIndent(rssDoc{Version: "2.0", Atom: "http://www.w3.org/2005/Atom", DC: "http://purl.org/dc/elements/1.1/", Source: sourceNS, Channel: ch}, "", "  ")
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -358,6 +385,7 @@ func isFeedPath(p string) bool {
 // plainExcerpt is the start of a page's text on one line, without the heading
 // and quote marks of its Markdown.
 func plainExcerpt(body string) string {
+	body = mdRef.ReplaceAllString(body, "$2") // a picture or link reads as its text
 	var words []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimLeft(strings.TrimSpace(line), "#> \t")

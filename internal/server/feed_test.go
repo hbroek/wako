@@ -481,3 +481,71 @@ func TestFeedWithoutAnAuthor(t *testing.T) {
 		t.Error("changes page still says Someone")
 	}
 }
+
+// Feed readers that render Markdown get the page's opening with addresses that work away from the wiki.
+func TestFeedCarriesMarkdownWithAbsoluteAddresses(t *testing.T) {
+	e := newEnv(t)
+	shot := asset(t, e.post("main", "shot.png", "image/png", pngOf(t, noiseImg(40, 30))), 201)
+	putPage(t, e, "main", "docs", "# Docs")
+	putPage(t, e, "main", "docs/other", "# Other")
+	putPage(t, e, "main", "docs/intro", "# Intro\n\nSee ![shot](shot.png#w=400) and [other](other) and [web](https://example.com/x) and ![far](https://example.com/p.jpg#w=600).\n\n```\ncode with ]]> inside\n```\n")
+	raw := expect(t, e.do("GET", "/main/_feed", ""), 200)
+	if !strings.Contains(raw, `xmlns:source="https://source.scripting.com/"`) {
+		t.Error("the feed does not declare the source namespace")
+	}
+	if strings.Contains(raw, "CDATA") {
+		t.Error("source:markdown is plain escaped text, as Scripting News writes it")
+	}
+	var f struct {
+		Items []struct {
+			Title    string `xml:"title"`
+			Markdown string `xml:"https://source.scripting.com/ markdown"`
+		} `xml:"channel>item"`
+	}
+	if err := xml.Unmarshal([]byte(raw), &f); err != nil {
+		t.Fatalf("the feed is not valid XML: %v", err)
+	}
+	var md string
+	for _, it := range f.Items {
+		if strings.Contains(it.Title, "Intro") {
+			md = it.Markdown
+		}
+	}
+	for _, want := range []string{
+		"[Intro](http://localhost:8888/main/docs/intro)",
+		"![shot](http://localhost:8888/main/_assets/" + shot.ID + "/shot.png#w=400)",
+		"[other](http://localhost:8888/main/docs/other)",
+		"[web](https://example.com/x)",
+		"![far](https://example.com/p.jpg#w=600)",
+		"code with ]]> inside",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("source:markdown lacks %q:\n%s", want, md)
+		}
+	}
+}
+
+func TestMarkdownExcerptCutsBetweenBlocks(t *testing.T) {
+	long := strings.Repeat("word ", 100) // 500 characters
+	body := long + "\n\n" + long + "\n\n" + long + "\n\n" + long
+	got, cut := markdownExcerpt(body, 1200)
+	if !cut || strings.Count(got, "word") != 200 || strings.Contains(got, "\n\n\n") {
+		t.Errorf("cut=%v, %d words", cut, strings.Count(got, "word"))
+	}
+	if short, cut := markdownExcerpt("# A\n\nsmall", 1200); cut || short != "# A\n\nsmall" {
+		t.Errorf("a short page is kept whole, got %q", short)
+	}
+	open, cut := markdownExcerpt("```\n"+strings.Repeat("x\n", 1200), 1200)
+	if !cut || strings.Count(open, "```") != 2 {
+		t.Errorf("an open code fence must be closed: cut=%v fences=%d", cut, strings.Count(open, "```"))
+	}
+	if f := fenced("diff", "a ``` b"); !strings.HasPrefix(f, "````diff\n") || !strings.HasSuffix(f, "\n````") {
+		t.Errorf("fence %q", f)
+	}
+}
+
+func TestXMLTextKeepsMarkdownReadable(t *testing.T) {
+	if got := xmlText("a \"b\" <c> & d\r\nx\x00y\x0b\tz\xff"); got != "a \"b\" &lt;c&gt; &amp; d\nxy\tz\uFFFD" {
+		t.Errorf("got %q", got)
+	}
+}
