@@ -689,3 +689,31 @@ func TestPDFAttachments(t *testing.T) {
 		t.Errorf("rename left the page alone: %q", got)
 	}
 }
+
+// A picture in a space anyone may read can be shown by another site (a feed reader, say);
+// a private space keeps the same-origin policy.
+func TestPublicPicturesMayBeShownByOtherSites(t *testing.T) {
+	e := newEnv(t)
+	if _, err := e.st.CreateSpace("secret", "secret", false); err != nil {
+		t.Fatal(err)
+	}
+	for space, want := range map[string]string{"main": "cross-origin", "secret": "same-origin"} {
+		a := asset(t, e.post(space, "p.png", "image/png", pngOf(t, noiseImg(40, 30))), 201)
+		for _, target := range []string{
+			"/" + space + "/_assets/" + a.ID + "/p.png",
+			"/" + space + "/_assets/" + a.ID + "/p.png?w=240",
+		} {
+			rec := e.do("GET", target, "")
+			if rec.Code != 200 {
+				t.Fatalf("%s: %d", target, rec.Code)
+			}
+			if got := rec.Header().Get("Cross-Origin-Resource-Policy"); got != want {
+				t.Errorf("%s: Cross-Origin-Resource-Policy %q, want %q", target, got, want)
+			}
+		}
+	}
+	// Pages and the API stay same-origin, even in a public space.
+	if got := e.do("GET", "/main/", "").Header().Get("Cross-Origin-Resource-Policy"); got != "same-origin" {
+		t.Errorf("a page: %q", got)
+	}
+}

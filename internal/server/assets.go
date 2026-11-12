@@ -226,6 +226,11 @@ func (s *Server) serveAsset(w http.ResponseWriter, r *http.Request, sp *store.Sp
 	visibility := "public"
 	if !sp.PublicRead {
 		visibility = "private"
+	} else {
+		// Anyone may read this space (the response says so in WAC-Allow and is cached as public),
+		// so another site may show its pictures: a feed reader showing an entry of this wiki,
+		// for one. Everything private keeps the same-origin policy every response starts with.
+		h.Set("Cross-Origin-Resource-Policy", "cross-origin")
 	}
 	if immutable {
 		h.Set("Cache-Control", visibility+", max-age=31536000, immutable")
