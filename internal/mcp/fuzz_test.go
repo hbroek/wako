@@ -28,6 +28,17 @@ func (f *fakeWiki) Do(ctx context.Context, method, path string, h http.Header, b
 	return 200, hdr, []byte(`[]`), nil
 }
 
+// dotSegment reports a "." or ".." path segment, which would climb out of the
+// page tree. A name that merely contains dots ("..0", "v1..2") is an ordinary page name.
+func dotSegment(path string) bool {
+	for _, seg := range strings.Split(path, "/") {
+		if seg == "." || seg == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 // Whatever bytes arrive, the handler answers with valid JSON-RPC (or nothing),
 // and never asks the wiki for anything outside page addresses.
 func FuzzHandle(f *testing.F) {
@@ -40,6 +51,8 @@ func FuzzHandle(f *testing.F) {
 		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"search","arguments":{"query":"a&b=c#d","limit":1e99}}}`,
 		`[{"jsonrpc":"2.0","method":"notifications/initialized"},{"jsonrpc":"2.0","id":8,"method":"ping"}]`,
 		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"get_page","arguments":{"space":["x"],"path":{"a":1}}}}`,
+		`{"jsonrpc":"2.0","method":"tools/call","params":{"name":"write_page","arguments":{"space":"0","path":"..0","markdown":"0"}}}`, // a name with dots in it is not a traversal
+		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"get_page","arguments":{"space":"main","path":"a/../b"}}}`,
 		`{`, `[]`, `null`, `"x"`, `{"id":1}`,
 	} {
 		f.Add(s)
@@ -56,7 +69,7 @@ func FuzzHandle(f *testing.F) {
 		}
 		for _, p := range fw.paths {
 			path := p[strings.IndexByte(p, ' ')+1:]
-			if !strings.HasPrefix(path, "/") || strings.Contains(path, "..") || strings.Contains(path, "//") || strings.ContainsAny(path, "\x00\r\n ") {
+			if !strings.HasPrefix(path, "/") || dotSegment(path) || strings.Contains(path, "//") || strings.ContainsAny(path, "\x00\r\n ") {
 				t.Fatalf("a tool made a strange request %q from %q", p, msg)
 			}
 			if strings.Contains(path, "/_") && !strings.HasPrefix(path, "/_api/") && !strings.Contains(path, "/_proposals") {
