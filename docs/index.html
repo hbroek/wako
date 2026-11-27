@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wako: a Markdown wiki in one Go binary</title>
+<meta name="description" content="wako is a wiki that keeps plain, portable Markdown in SQLite. One static program, no runtime dependencies: spaces, history, kanban boards, pictures, AI through MCP, and a command-line client.">
+<meta name="theme-color" content="#4f46e5">
+<meta name="author" content="Henry van den Broek">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="keywords" content="wiki, Markdown, SQLite, Go, self-hosted, kanban, MCP, open source">
+<link rel="canonical" href="https://wako.henryvandenbroek.com/">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-512.png">
+
+<!-- How a link to this page looks when it is shared -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="wako">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="wako: a Markdown wiki in one Go binary">
+<meta property="og:description" content="Plain, portable Markdown in SQLite. Spaces, history, kanban boards, pictures, AI through MCP. One static program.">
+<meta property="og:url" content="https://wako.henryvandenbroek.com/">
+<meta property="og:image" content="https://wako.henryvandenbroek.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="The wako logo and the words: a wiki that keeps plain Markdown in SQLite.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="wako: a Markdown wiki in one Go binary">
+<meta name="twitter:description" content="Plain, portable Markdown in SQLite. Spaces, history, kanban boards, pictures, AI through MCP. One static program.">
+<meta name="twitter:image" content="https://wako.henryvandenbroek.com/assets/og.png">
+<meta name="twitter:image:alt" content="The wako logo and the words: a wiki that keeps plain Markdown in SQLite.">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "wako",
+  "description": "A wiki that keeps plain, portable Markdown in SQLite. One static program, no runtime dependencies.",
+  "url": "https://wako.henryvandenbroek.com/",
+  "image": "https://wako.henryvandenbroek.com/assets/og.png",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Linux, macOS, Windows, Docker",
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/hbroek/wako",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "author": {"@type": "Person", "name": "Henry van den Broek"}
+}
+</script>
+
+<style>
+:root{
+  color-scheme:light;
+  --bg:#fff; --bg2:#f5f6f8; --fg:#1d2127; --muted:#596273; --line:#dde1e6;
+  --accent:#4338ca; --accent-fg:#fff; --link:#2563eb; --code:#eef0f4;
+  --grad:linear-gradient(90deg,#4f46e5,#c026d3,#f97316);
+  --shadow:0 18px 50px #1d212722;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --bg:#14171c; --bg2:#1b1f26; --fg:#e4e7eb; --muted:#a3acba; --line:#2a2f37;
+  --accent:#8b93ff; --accent-fg:#10141a; --link:#7aa2ff; --code:#222731;
+  --shadow:0 18px 50px #0008;
+}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--link)}
+img{max-width:100%;height:auto}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+code{background:var(--code);padding:.1em .35em;border-radius:5px;font-size:.9em}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+/* top bar */
+header.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:1rem;height:58px}
+.brand{display:flex;align-items:center;gap:.55rem;font-weight:700;font-size:1.15rem;color:var(--fg);text-decoration:none}
+.brand img{width:30px;height:30px}
+nav{margin-left:auto;display:flex;gap:1.1rem;align-items:center;font-size:.95rem}
+nav a{color:var(--muted);text-decoration:none}
+nav a:hover{color:var(--fg)}
+.btn{display:inline-block;padding:.65rem 1.15rem;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--fg);text-decoration:none;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.small{padding:.35rem .8rem;font-size:.9rem}
+@media (max-width:640px){nav a.hide-s{display:none}}
+
+/* hero */
+.hero{text-align:center;padding:72px 0 40px}
+.hero .logo{width:96px;height:96px;filter:drop-shadow(0 12px 24px #4f46e544)}
+.hero h1{font-size:clamp(2.2rem,6vw,3.6rem);line-height:1.1;margin:.9rem auto .6rem;max-width:18ch;letter-spacing:-.02em}
+.hero h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:1.2rem;color:var(--muted);max-width:40rem;margin:0 auto 1.6rem}
+.cta{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+.badges{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.4rem;padding:0;list-style:none}
+.badges li{font-size:.85rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:.15rem .7rem;background:var(--bg2)}
+
+/* screenshots */
+.shots{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin:24px 0 8px}
+.shots figure{margin:0}
+.shots img{display:block;width:100%;border-radius:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.shots figcaption{text-align:center;color:var(--muted);font-size:.9rem;margin-top:.6rem}
+@media (max-width:760px){.shots{grid-template-columns:1fr}}
+
+/* sections */
+section{padding:56px 0}
+section h2{font-size:clamp(1.6rem,4vw,2.1rem);line-height:1.2;margin:0 0 .4rem;letter-spacing:-.01em}
+section h2::after{content:"";display:block;height:3px;width:72px;margin-top:.6rem;background:var(--grad);border-radius:2px}
+.sub{color:var(--muted);margin:.8rem 0 2rem;max-width:44rem}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.grid{grid-template-columns:1fr}}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{margin:0 0 .35rem;font-size:1.05rem}
+.card p{margin:0;color:var(--muted);font-size:.97rem}
+.card .ico{font-size:1.5rem;line-height:1;margin-bottom:.5rem}
+
+/* code */
+pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;overflow-x:auto;font-size:.9rem;line-height:1.55;margin:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media (max-width:800px){.two{grid-template-columns:1fr}}
+.two h3{margin:0 0 .5rem;font-size:1rem}
+.alt{background:var(--bg2);border-block:1px solid var(--line)}
+.alt .card{background:var(--bg)}
+.alt pre{background:var(--bg)}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:36px 0 48px;color:var(--muted);font-size:.93rem}
+footer .cols{display:flex;flex-wrap:wrap;gap:28px 56px;justify-content:space-between}
+footer h4{margin:0 0 .5rem;color:var(--fg);font-size:.95rem}
+footer ul{list-style:none;margin:0;padding:0;display:grid;gap:.3rem}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--fg)}
+.fine{margin-top:28px;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/logo.svg" alt="" width="30" height="30">wako</a>
+    <nav aria-label="Main">
+      <a class="hide-s" href="#features">Features</a>
+      <a class="hide-s" href="#run">Run it</a>
+      <a class="hide-s" href="#ai">AI</a>
+      <a class="btn small" href="https://github.com/hbroek/wako">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+<div class="wrap">
+  <div class="hero">
+    <img class="logo" src="assets/logo.svg" alt="wako logo" width="96" height="96">
+    <h1>A wiki that keeps <span>plain Markdown</span> in SQLite</h1>
+    <p class="lead">One static program, no runtime dependencies. Your pages stay ordinary Markdown files you can read, export and take anywhere.</p>
+    <div class="cta">
+      <a class="btn primary" href="#run">Run it in a minute</a>
+      <a class="btn" href="https://github.com/hbroek/wako">View on GitHub</a>
+    </div>
+    <ul class="badges" aria-label="Facts">
+      <li>MIT licensed</li><li>Written in Go</li><li>Single static binary</li><li>Private by default</li><li>Docker image from scratch</li>
+    </ul>
+  </div>
+
+  <div class="shots">
+    <figure>
+      <picture>
+        <source srcset="assets/wiki-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="assets/wiki-light.png" width="1280" height="780" alt="A wako page with a page tree on the left, a heading with a gradient line, a table and a task list" loading="eager">
+      </picture>
+      <figcaption>Pages, a page tree, tables and task lists</figcaption>
+    </figure>
+    <figure>
+      <picture>
+        <source srcset="assets/board-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="assets/board-light.png" width="1280" height="780" alt="A kanban board with three columns, To do, Doing and Done, made from an ordinary Markdown page" loading="lazy">
+      </picture>
+      <figcaption>A kanban board, written as plain Markdown</figcaption>
+    </figure>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Everything in the page, nothing in the way</h2>
+    <p class="sub">wako does the wiki things you expect and stays out of your content. What you write is what is stored.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">📝</div><h3>Markdown in, Markdown out</h3><p>Ask a page for <code>text/markdown</code> (or add <code>.md</code>) and you get the text you wrote. A browser gets HTML. GitHub Flavored Markdown, and nothing more.</p></div>
+      <div class="card"><div class="ico">🗂️</div><h3>Spaces</h3><p>Many independent wikis on one server, each with its own SQLite file, members and roles. A new space is private until you let anonymous visitors read it.</p></div>
+      <div class="card"><div class="ico">🕘</div><h3>History and suggestions</h3><p>Every change is kept, with diffs and restore, and saves are conflict-safe. People who may only suggest queue changes for an editor to accept or reject.</p></div>
+      <div class="card"><div class="ico">📋</div><h3>Kanban boards</h3><p>Headings become columns and task items become cards, in plain Markdown. Add front matter and <code>{{page.title}}</code> macros to any page.</p></div>
+      <div class="card"><div class="ico">🖼️</div><h3>Pictures and PDFs</h3><p>A media library per space. Paste or drop an image into the editor, phone photos are shrunk in the browser first, and the server strips metadata and makes smaller copies.</p></div>
+      <div class="card"><div class="ico">🔎</div><h3>Find and follow</h3><p>Full-text search, backlinks, a broken-link report and RSS feeds of changes, with the Markdown of new pages carried in each entry.</p></div>
+      <div class="card"><div class="ico">📦</div><h3>Portable</h3><p>Export a space as a zip of ordinary <code>.md</code> files and images, import it again, or drive the wiki from the <code>wako</code> command-line client.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3>Careful by default</h3><p>Raw HTML never shows, output is sanitised, pages carry a strict Content-Security-Policy, cross-site changes are refused, and passwords use Argon2id.</p></div>
+      <div class="card"><div class="ico">🧰</div><h3>One program</h3><p>A static Go binary with SQLite built in. No database server, no runtime, no C compiler. The Docker image is built from <code>scratch</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="ai" class="alt">
+  <div class="wrap">
+    <h2>AI, on your terms</h2>
+    <p class="sub">Any assistant that speaks MCP can read and edit the wiki. You can also ask the wiki questions and have pages drafted. All of it is off until you set a provider.</p>
+    <div class="grid">
+      <div class="card"><h3>Only what you may read</h3><p>The pages an assistant sees are chosen from the spaces the person asking can read. A private space never reaches someone who is not a member.</p></div>
+      <div class="card"><h3>Changes can wait</h3><p>Give an assistant a token that can only suggest, and everything it writes waits as a diff for a person to approve.</p></div>
+      <div class="card"><h3>Per space switch</h3><p>A server administrator turns the AI features on one space at a time. Nothing is sent anywhere until then.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap">
+    <h2>Run it</h2>
+    <p class="sub">Build the image, start it with a volume, and open it. Sign in as <code>admin</code>.</p>
+    <div class="two">
+      <div>
+        <h3>With Docker</h3>
+<pre>git clone https://github.com/hbroek/wako.git
+cd wako
+docker build -t wako .
+docker run -d --name wako --restart unless-stopped \
+  -p 127.0.0.1:8888:8888 \
+  -v wako-data:/data \
+  -e WAKO_ADMIN_PASSWORD='choose-a-password' \
+  wako</pre>
+      </div>
+      <div>
+        <h3>From source</h3>
+<pre>git clone https://github.com/hbroek/wako.git
+cd wako
+make build
+./bin/wakod
+# http://127.0.0.1:8888/
+# data in ./data</pre>
+        <p class="sub" style="margin:1rem 0 0">Behind a reverse proxy, backups and updating are in the <a href="https://github.com/hbroek/wako/blob/main/deploy/docker.md">Docker guide</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="brand" href="#top"><img src="assets/logo.svg" alt="" width="30" height="30">wako</a>
+        <p style="margin:.6rem 0 0;max-width:22rem">A Markdown wiki in one Go binary. Made by Henry van den Broek.</p>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/hbroek/wako">Source on GitHub</a></li>
+          <li><a href="https://github.com/hbroek/wako/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/hbroek/wako/blob/main/deploy/docker.md">Docker guide</a></li>
+          <li><a href="https://github.com/hbroek/wako/blob/main/LICENSE">MIT license</a></li>
+          <li><a href="https://github.com/hbroek/goldmark-kanban">goldmark-kanban</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine">© 2026 Henry van den Broek. wako is released under the MIT license.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>wako</title>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#0ea5a4"/></linearGradient></defs>
+<path d="M14 2h26l22 22v26a12 12 0 0 1-12 12H14A12 12 0 0 1 2 50V14A12 12 0 0 1 14 2z" fill="url(#g)"/>
+<path d="M40 2l22 22H52a12 12 0 0 1-12-12z" fill="#fff" fill-opacity=".35"/>
+<path d="M13 24l9 25 10-18 10 18 9-25" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
