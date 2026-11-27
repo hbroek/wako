@@ -456,7 +456,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request, rest string) {
 				http.Error(w, "bad JSON", http.StatusBadRequest)
 				return
 			}
-			pub := in.PublicRead == nil || *in.PublicRead
+			pub := in.PublicRead != nil && *in.PublicRead // a space is private until someone turns reading on
 			sp, err := s.st.CreateSpace(in.Slug, in.Title, pub)
 			if err != nil {
 				s.fail(w, err)

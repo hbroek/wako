@@ -107,7 +107,7 @@ func serve(cfg *config.Config) int {
 		st.Quota = -1
 	}
 	if spaces, err := st.ListSpaces(); err == nil && len(spaces) == 0 {
-		if _, err := st.CreateSpace("main", "Main", true); err != nil {
+		if _, err := st.CreateSpace("main", "Main", false); err != nil {
 			return fatal("creating the first space", "err", err)
 		}
 		log.Info("created the first space", "space", "main")

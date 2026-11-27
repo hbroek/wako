@@ -738,7 +738,7 @@ func (a *app) importZip(args []string) error {
 			if title == "" {
 				title = strings.Title(strings.ReplaceAll(a.space, "-", " "))
 			}
-			body, _ := json.Marshal(map[string]any{"slug": a.space, "title": title, "public_read": true})
+			body, _ := json.Marshal(map[string]any{"slug": a.space, "title": title})
 			resp, err := a.call("POST", "/_api/spaces", bytes.NewReader(body), "Content-Type", "application/json")
 			if err != nil {
 				return fmt.Errorf("creating space %s: %v", a.space, err)

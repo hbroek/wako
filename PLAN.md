@@ -18,7 +18,7 @@ Requirements are modeled on LeafWiki (single binary, page tree, Markdown editing
 | Content negotiation | `Accept: text/markdown` returns raw Markdown. A browser (`text/html`) gets rendered HTML. `application/json` returns metadata. |
 | `.md` alternative | A `.md` suffix on any page URL forces Markdown, regardless of `Accept`. It also works on `PUT`, `POST` and `DELETE`. Page slugs therefore may not end in `.md`. |
 | Spaces | Every page and asset belongs to exactly one space. URLs are `/{space}/{page-path}`. |
-| Anonymous access | Anonymous visitors get read-only access. Each space has a `public_read` flag, default **true**. An admin can switch it off for a private space. Anonymous users can never write. |
+| Anonymous access | Anonymous visitors get read-only access. Each space has a `public_read` flag, default **false**: a new space (and the first space, `main`) is closed to anonymous visitors until a space administrator turns reading on. Spaces made earlier keep the value they have. Anonymous users can never write. |
 | Asset URLs | Space-scoped: `/{space}/_assets/{id}/{name}` |
 
 ## 2. URL and API layout
@@ -132,7 +132,7 @@ data/spaces/<id>.db   one database per space (named by space id, so renaming a s
 
 **Catalog (`wako.db`)**
 ```
-spaces(id PK, slug UNIQUE, title, public_read BOOL DEFAULT 1, created_at)
+spaces(id PK, slug UNIQUE, title, public_read BOOL DEFAULT 0, created_at)
 users(id PK, name UNIQUE, password_hash, is_admin BOOL)
 space_members(space_id, user_id, role /* viewer|editor|admin */, PK(space_id,user_id))
 sessions(id, user_id, refresh_hash, expires_at)
