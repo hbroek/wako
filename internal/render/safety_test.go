@@ -47,7 +47,7 @@ func unsafeHTML(out string) string {
 					}
 				case key == "srcdoc" || key == "formmethod" || key == "http-equiv" || key == "is":
 					bad = append(bad, key)
-				case key == "class" && !(a.Val == "missing" || a.Val == "task" && n.Data == "span" || strings.HasPrefix(a.Val, "language-")):
+				case key == "class" && !(a.Val == "missing" || a.Val == "task" && n.Data == "span" || strings.HasPrefix(a.Val, "language-") || kanbanClass(n.Data, a.Val)):
 					bad = append(bad, "class="+a.Val)
 				case key == "target" || key == "rel" && n.Data != "a":
 					bad = append(bad, key+"="+a.Val)
@@ -197,14 +197,33 @@ func TestGoodMarkdownSurvivesTheSanitiser(t *testing.T) {
 	}
 }
 
+// kanbanClass reports whether val is a class a kanban board puts on element tag.
+func kanbanClass(tag, val string) bool {
+	switch tag {
+	case "div":
+		return val == "kanban"
+	case "section":
+		return val == "kanban-column" || val == "kanban-column kanban-column-complete"
+	case "ul":
+		return val == "kanban-cards"
+	case "li":
+		return val == "kanban-card" || val == "kanban-card kanban-card-done"
+	}
+	return false
+}
+
 func FuzzRenderIsAlwaysSafe(f *testing.F) {
 	for _, a := range attacks {
 		f.Add(a)
 	}
 	f.Add("# Title\n\n![x](shot.png) [l](a/b)\n")
 	f.Add("[ref]: <a b> \"t\"\n\n![r][ref]")
+	f.Add("---\ntitle: <img src=x onerror=alert(1)>\nk: \"[x](javascript:alert(1))\"\n---\n{{page.title}} {{page.k}} ![{{page.k}}]({{page.k}})\n")
+	f.Add("---\nkanban: true\n---\n## A\n- [ ] {{page.title}} <script>alert(1)</script>\n## B\n- [x] y\n")
+	f.Add("<!-- kanban -->\n## A\n- [ ] <img src=x onerror=alert(1)>\n<!-- /kanban -->")
 	f.Fuzz(func(t *testing.T, src string) {
 		out, err := Render(src, Options{
+			Page: Page{Title: "<b>t</b>", Path: "a/b", Slug: "b", Space: "main"},
 			Images: func(name string, _ Size) (Image, bool) {
 				return Image{Src: "/m/" + name, Link: "/m/full/" + name, Width: 3, Height: 2}, name != ""
 			},

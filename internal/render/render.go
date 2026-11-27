@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	kanban "github.com/hbroek/goldmark-kanban"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -22,13 +23,19 @@ import (
 
 var md = goldmark.New(
 	// CommonMark plus the four GitHub Flavored Markdown extensions: tables,
-	// strikethrough, task lists and bare-URL autolinks. Footnotes and the rest
-	// stay off, so that syntax shows as plain text.
-	goldmark.WithExtensions(extension.GFM),
+	// strikethrough, task lists and bare-URL autolinks, and kanban boards (only
+	// where a page asks for one). Footnotes and the rest stay off, so that
+	// syntax shows as plain text.
+	goldmark.WithExtensions(extension.GFM, kanban.Extension),
 	// Task list items show an emoji instead of a checkbox (this beats the
 	// extension's own renderer, which has a lower priority number to lose).
 	goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(taskEmoji{}, 100))),
-	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	goldmark.WithParserOptions(
+		parser.WithAutoHeadingID(),
+		// Front matter is read first (before the kanban extension's own, which
+		// only knows the board keys) and leaves no trace in the page.
+		parser.WithBlockParsers(util.Prioritized(frontMatterParser{}, 0)),
+	),
 )
 
 var policy = func() *bluemonday.Policy {
@@ -49,6 +56,11 @@ var policy = func() *bluemonday.Policy {
 	p.AllowAttrs("class").Matching(regexp.MustCompile(`^task$`)).OnElements("span")
 	p.AllowAttrs("role").Matching(regexp.MustCompile(`^img$`)).OnElements("span")
 	p.AllowAttrs("aria-label").Matching(regexp.MustCompile(`^(done|not done)$`)).OnElements("span")
+	// Kanban boards: a board, its columns and its cards (see goldmark-kanban).
+	p.AllowAttrs("class").Matching(regexp.MustCompile(`^kanban$`)).OnElements("div")
+	p.AllowAttrs("class").Matching(regexp.MustCompile(`^kanban-column( kanban-column-complete)?$`)).OnElements("section")
+	p.AllowAttrs("class").Matching(regexp.MustCompile(`^kanban-cards$`)).OnElements("ul")
+	p.AllowAttrs("class").Matching(regexp.MustCompile(`^kanban-card( kanban-card-done)?$`)).OnElements("li")
 	// Column alignment from a table's separator row.
 	p.AllowAttrs("style").Matching(regexp.MustCompile(`^text-align:\s*(left|right|center)$`)).OnElements("th", "td")
 	return p
@@ -134,6 +146,9 @@ type Options struct {
 	// ("https://example.com/a.jpg#w=400") for the address of a smaller copy. When it
 	// declines, the size becomes the width or height the picture is shown at.
 	External func(addr string, size Size) (string, bool)
+	// Page says what {{page.title}}, {{page.path}} and the other built-in macros
+	// stand for. See macros.go.
+	Page Page
 }
 
 func (o Options) resizeExternal(addr string, size Size) (string, bool) {
@@ -170,6 +185,8 @@ func Render(src string, o Options) (string, error) {
 	resolve := o.Images
 	b := []byte(src)
 	doc := md.Parser().Parse(text.NewReader(b))
+	meta, _ := FrontMatter(src)
+	newMacros(o.Page, meta, src).expand(doc, b)
 	type wrap struct {
 		img  *ast.Image
 		link string
@@ -294,9 +311,14 @@ func ImageRefs(src string) []string {
 	return out
 }
 
-// Title returns the text of the first level-1 ATX heading, or "" if none.
+// Title returns the title that the front matter gives, else the text of the
+// first level-1 ATX heading, or "" if there is none.
 func Title(src string) string {
-	for _, line := range strings.Split(src, "\n") {
+	meta, end := FrontMatter(src)
+	if t := meta["title"]; t != "" {
+		return t
+	}
+	for _, line := range strings.Split(src[end:], "\n") {
 		line = strings.TrimRight(line, " \t\r")
 		if strings.HasPrefix(line, "# ") {
 			return strings.TrimSpace(strings.Trim(strings.TrimPrefix(line, "# "), "# "))

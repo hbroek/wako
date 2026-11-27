@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hbroek/wako/internal/diff"
+	"github.com/hbroek/wako/internal/render"
 	"github.com/hbroek/wako/internal/store"
 )
 
@@ -257,6 +258,7 @@ func (s *Server) entry(lc *linkCtx, sc spaceChange, link, origin string, global 
 		return b.String(), m.String() // pruned since
 	}
 	if c.Action == "created" {
+		rev.Body = render.StripFrontMatter(rev.Body) // properties are not part of the text
 		text := plainExcerpt(rev.Body)
 		if text != "" {
 			b.WriteString("<blockquote>" + htmlpkg.EscapeString(text) + "</blockquote>")

@@ -3,8 +3,9 @@ module github.com/hbroek/wako
 go 1.27.2
 
 require (
+	github.com/hbroek/goldmark-kanban v0.0.0-20261127143138-edda3050e3f9
 	github.com/microcosm-cc/bluemonday v1.0.27
-	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark v1.8.7
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.60.0
 	modernc.org/sqlite v1.61.0

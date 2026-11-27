@@ -107,6 +107,9 @@
 <tr><td><code>```</code> on its own line before and after</td><td>code block</td></tr>
 <tr><td><code>| a | b |</code> then <code>|---|---|</code> then <code>| 1 | 2 |</code></td><td>table (<code>:---:</code> centres a column)</td></tr>
 <tr><td><code>---</code></td><td>horizontal rule</td></tr>
+<tr><td><code>---</code> <code>title: Plan</code> <code>owner: Sam</code> <code>---</code> at the very start</td><td>front matter: not shown; <code>title</code> sets the page title; <code>kanban: true</code> makes the page a board</td></tr>
+<tr><td><code>{{"{{"}}page.title}}</code> <code>{{"{{"}}page.owner}}</code> <code>{{"{{"}}page.path}}</code></td><td>macros: filled in when the page is shown, from the page or its front matter (also <code>page.slug</code>, <code>page.space</code>); write <code>\{{"{{"}}page.title}}</code> or use code to show one as it is</td></tr>
+<tr><td><code>&lt;!-- kanban --&gt;</code> then <code>## To do</code> and <code>- [ ] card</code> lists, then <code>&lt;!-- /kanban --&gt;</code></td><td>a kanban board: each <code>##</code> heading is a column, each task a card</td></tr>
 </table>
 <p class="hint">Raw HTML and footnotes are not shown. Ctrl+B / Ctrl+I bold and italicise the selection; Ctrl+Alt+1–3 make a heading.</p>
 </details>
