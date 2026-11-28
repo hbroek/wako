@@ -19,7 +19,7 @@ FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/wakod /out/wako /usr/local/bin/
 COPY --from=build --chown=65532:65532 --chmod=0700 /out/data /data
-COPY --from=build /out/tmp /tmp
+COPY --from=build --chown=65532:65532 --chmod=1777 /out/tmp /tmp
 USER 65532:65532
 ENV WAKO_DATA_DIR=/data WAKO_ADDR=0.0.0.0:8888 WAKO_LOG_FORMAT=json
 VOLUME /data
