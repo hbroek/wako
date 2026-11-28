@@ -9,6 +9,8 @@ updated: 2026-11-27
 
 ![wako logo](logo.svg#w=60)
 
+> **This is a read-only demo.** You can look around, search and read the Markdown behind every page, but nothing here can be changed. To edit pages, [run your own wako](https://github.com/hbroek/wako#run-it).
+
 This space shows what a **wako** wiki can do. Everything here is ordinary Markdown: open any page, press **Edit**, and compare what you see with what is written.
 
 *Page owner:* {{page.owner}} · *Status:* {{page.status}} · *Space:* {{page.space}} · *Path:* `{{page.path}}`

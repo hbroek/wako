@@ -28,7 +28,9 @@ wako does the wiki things you expect and stays out of your content. What you wri
 
 ## See it working
 
-A small wiki is running at [wako-demo.henryvandenbroek.com](https://wako-demo.henryvandenbroek.com/demo/). Every page shows one feature, and the Markdown behind it is one click away: use the **Markdown** button on any page.
+A small wiki is running at [wako-demo.henryvandenbroek.com](https://wako-demo.henryvandenbroek.com/demo/welcome). Every page shows one feature, and the Markdown behind it is one click away: use the **Markdown** button on any page.
+
+**It is a read-only demo.** You can browse and search it, but nobody can change anything. To edit pages, [run your own wako](#run-it).
 
 - [Welcome](https://wako-demo.henryvandenbroek.com/demo/welcome): start here. Front matter and `{{page.*}}` macros fill in the title, owner and path.
 - [Project board](https://wako-demo.henryvandenbroek.com/demo/board): kanban boards, as a whole page or as part of one (see also the [roadmap](https://wako-demo.henryvandenbroek.com/demo/roadmap)).
@@ -39,7 +41,7 @@ A small wiki is running at [wako-demo.henryvandenbroek.com](https://wako-demo.he
 - [Text and lists](https://wako-demo.henryvandenbroek.com/demo/text-and-lists): headings, nested lists, quotes and code blocks.
 - [A tree of pages](https://wako-demo.henryvandenbroek.com/demo/trips): pages below pages, such as a [summit trail](https://wako-demo.henryvandenbroek.com/demo/trips/summit-trail) with its own map and checklist.
 
-[Open the demo wiki](https://wako-demo.henryvandenbroek.com/demo/)
+[Open the demo wiki](https://wako-demo.henryvandenbroek.com/demo/welcome)
 
 ## AI, on your terms
 
@@ -81,7 +83,7 @@ Behind a reverse proxy, backups and updating are in the [Docker guide](https://g
 
 ## Project
 
-- [Live demo](https://wako-demo.henryvandenbroek.com/demo/)
+- [Live demo](https://wako-demo.henryvandenbroek.com/demo/welcome)
 - [Source on GitHub](https://github.com/hbroek/wako)
 - [README](https://github.com/hbroek/wako/blob/main/README.md)
 - [Docker guide](https://github.com/hbroek/wako/blob/main/deploy/docker.md)
