@@ -10,6 +10,7 @@
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="keywords" content="wiki, Markdown, SQLite, Go, self-hosted, kanban, MCP, open source">
 <link rel="canonical" href="https://wako.henryvandenbroek.com/">
+<link rel="alternate" type="text/markdown" href="index.md" title="This page as Markdown">
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-512.png">
 
@@ -142,6 +143,7 @@ footer a:hover{color:var(--fg)}
     <a class="brand" href="#top"><img src="assets/logo.svg" alt="" width="30" height="30">wako</a>
     <nav aria-label="Main">
       <a class="hide-s" href="#features">Features</a>
+      <a class="hide-s" href="#demo">Demo</a>
       <a class="hide-s" href="#run">Run it</a>
       <a class="hide-s" href="#ai">AI</a>
       <a class="btn small" href="https://github.com/hbroek/wako">GitHub</a>
@@ -156,7 +158,8 @@ footer a:hover{color:var(--fg)}
     <h1>A wiki that keeps <span>plain Markdown</span> in SQLite</h1>
     <p class="lead">One static program, no runtime dependencies. Your pages stay ordinary Markdown files you can read, export and take anywhere.</p>
     <div class="cta">
-      <a class="btn primary" href="#run">Run it in a minute</a>
+      <a class="btn primary" href="https://wako-demo.henryvandenbroek.com/demo/welcome">Try the demo</a>
+      <a class="btn" href="#run">Run it in a minute</a>
       <a class="btn" href="https://github.com/hbroek/wako">View on GitHub</a>
     </div>
     <ul class="badges" aria-label="Facts">
@@ -200,7 +203,27 @@ footer a:hover{color:var(--fg)}
   </div>
 </section>
 
-<section id="ai" class="alt">
+<section id="demo" class="alt">
+  <div class="wrap">
+    <h2>See it working</h2>
+    <p class="sub">A small wiki is running at <a href="https://wako-demo.henryvandenbroek.com/demo/">wako-demo.henryvandenbroek.com</a>. Every page shows one feature, and the Markdown behind it is one click away: use the <strong>Markdown</strong> button on any page.</p>
+    <div class="grid">
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/welcome">Welcome</a></h3><p>Start here. Front matter and <code>{{page.*}}</code> macros fill in the title, owner and path.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/board">Project board</a></h3><p>Kanban boards, as a whole page or as part of one (see also the <a href="https://wako-demo.henryvandenbroek.com/demo/roadmap">roadmap</a>).</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/todos">To-dos</a></h3><p>Task lists, shown as ✅ and ⬜, that stay plain text in any Markdown viewer.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/tables">Tables</a></h3><p>Aligned columns, formatting inside cells, and a chart picture.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/links">Links</a></h3><p>Links to other pages, to other sites and to a PDF, plus a red link to a page nobody has written yet.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/pictures">Pictures</a></h3><p>Screenshots, sizes and SVGs from the media library, and <a href="https://wako-demo.henryvandenbroek.com/demo/attachments">PDF attachments</a>.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/text-and-lists">Text and lists</a></h3><p>Headings, nested lists, quotes and code blocks.</p></div>
+      <div class="card"><h3><a href="https://wako-demo.henryvandenbroek.com/demo/trips">A tree of pages</a></h3><p>Pages below pages, such as a <a href="https://wako-demo.henryvandenbroek.com/demo/trips/summit-trail">summit trail</a> with its own map and checklist.</p></div>
+    </div>
+    <div class="cta" style="margin-top:28px">
+      <a class="btn primary" href="https://wako-demo.henryvandenbroek.com/demo/">Open the demo wiki</a>
+    </div>
+  </div>
+</section>
+
+<section id="ai">
   <div class="wrap">
     <h2>AI, on your terms</h2>
     <p class="sub">Any assistant that speaks MCP can read and edit the wiki. You can also ask the wiki questions and have pages drafted. All of it is off until you set a provider.</p>
@@ -212,7 +235,7 @@ footer a:hover{color:var(--fg)}
   </div>
 </section>
 
-<section id="run">
+<section id="run" class="alt">
   <div class="wrap">
     <h2>Run it</h2>
     <p class="sub">Build the image, start it with a volume, and open it. Sign in as <code>admin</code>.</p>
@@ -253,6 +276,8 @@ make build
       <div>
         <h4>Project</h4>
         <ul>
+          <li><a href="https://wako-demo.henryvandenbroek.com/demo/">Live demo</a></li>
+          <li><a href="index.md">This page as Markdown</a></li>
           <li><a href="https://github.com/hbroek/wako">Source on GitHub</a></li>
           <li><a href="https://github.com/hbroek/wako/blob/main/README.md">README</a></li>
           <li><a href="https://github.com/hbroek/wako/blob/main/deploy/docker.md">Docker guide</a></li>
