@@ -13,6 +13,7 @@ A wiki that stores plain, portable Markdown in SQLite. One static program, no ru
 - **Pasting pictures.** Paste an image (a screenshot, or a picture copied from a web page) or drop a file into the editor: it is uploaded to the media library and `![pasted-20261104-153012](pasted-20261104-153012.png)` is written where the cursor was when you pasted. Screenshots, which browsers all call `image.png`, get a dated name.
 - **Phone photos are shrunk in the browser.** Before a picture is uploaded (picker, paste, drop, library page), the browser scales it down to the longest side the server keeps (`-image-max-side`, 1600 px by default), halving in steps so it stays sharp, and saves a JPEG (or a PNG, for a PNG). A 12 or 48 megapixel photo leaves the phone as a few hundred KB, so it can neither be too big to upload nor have more pixels than the server will decode (`-image-max-mpix`). The camera's rotation is applied and location and date are dropped, as the server does anyway. GIFs, SVGs, PDFs, pictures that are already small enough and servers set to keep originals are sent as they are, and if the browser cannot read a picture it sends the original. HEIC files are converted where the browser can read them (Safari); iOS usually hands over JPEG anyway.
 - **PDF attachments.** The media library also keeps PDF files. Upload one (or drop it on the editor), and **Image / PDF…** inserts a link, `[manual](manual.pdf)`, that opens the file. PDFs may be up to 10 MiB (`-max-pdf-mb`, `WAKO_MAX_PDF_MB`; images keep `-max-stored-mb`, 5 MiB by default), and an upload is limited by `-max-upload-mb` and are stored exactly as uploaded: wako checks the type and the size, does not read or change the file, and does not show it inside a page. They are listed, renamed and deleted in the same library page, and travel in exports and imports like images.
+- **Search from Markdown browsers.** `/.well-known/bonbon.json` says `{"urlSearch": "/_search"}`, and `GET /_search?q=words` answers a Markdown page of matches (`###` headings that link to the pages, 20 a page, a "More results" link for the rest). It covers the spaces the request may read: a Bearer token also finds what its owner may see, anyone else only public spaces. Page text in the answer is escaped, so it never becomes markup.
 - **History** with diffs, restore, conflict-safe saves, search, backlinks, a broken-link report and RSS feeds of changes.
 - **Suggestions.** People (and programs) who may only suggest queue changes for an editor to review: a diff, accept or reject, credit to the author.
 - **AI, on your terms.** Any assistant can read and edit the wiki through MCP; you can ask the wiki questions and have pages drafted. Everything an assistant writes can wait for a person to approve it.
@@ -47,6 +48,18 @@ curl -H "Accept: text/markdown" http://localhost:8888/main/notes
 ```
 
 Tokens are made on the Account page. Whether you may edit a page is announced in its response headers (`Allow`, `Accept-Patch`, `Link: rel="edit"`, `WAC-Allow`).
+
+## Try the demo
+
+`demo/` holds a small wiki that shows the features: text, lists, tables, to-dos, internal and external links, pictures, a PDF, front matter and macros, and kanban boards. Build a database from it and open it:
+
+```sh
+make build
+deploy/seed-demo.sh                        # makes ./demo-data
+./bin/wakod -data-dir ./demo-data -disable-auth
+```
+
+Then open <http://127.0.0.1:8888/demo/welcome>. `-disable-auth` makes everyone an administrator, so use it only on your own machine. The demo is also an ordinary folder of Markdown, so `wako import --create demo` loads it into any server you can sign in to.
 
 ## Settings
 

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 240" width="480" height="240">
+  <rect width="480" height="240" fill="#fbfaf7"/>
+  <g stroke="#dddddd" stroke-width="1"><path d="M50 200H460M50 150H460M50 100H460M50 50H460"/></g>
+  <g fill="#2f6f9f"><rect x="80" y="140" width="50" height="60"/><rect x="170" y="110" width="50" height="90"/><rect x="260" y="80" width="50" height="120"/><rect x="350" y="45" width="50" height="155"/></g>
+  <g font-family="sans-serif" font-size="13" fill="#333333" text-anchor="middle"><text x="105" y="220">Q1</text><text x="195" y="220">Q2</text><text x="285" y="220">Q3</text><text x="375" y="220">Q4</text></g>
+  <text x="240" y="24" font-family="sans-serif" font-size="15" fill="#222222" text-anchor="middle">Visitors per quarter (demo data)</text>
+</svg>

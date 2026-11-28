@@ -136,6 +136,10 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		s.ui(w, r, "apple-touch-icon.png")
 	case first == "_resize" && rest == "":
 		s.resize(w, r)
+	case first == ".well-known" && rest == "bonbon.json":
+		s.wellKnownBonbon(w, r)
+	case first == searchPath && rest == "":
+		s.siteSearch(w, r)
 	case first == "_mcp" && rest == "":
 		s.mcpEndpoint(w, r)
 	case first == "_feed" && rest == "":
