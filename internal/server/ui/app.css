@@ -176,8 +176,8 @@ body.focus .panes textarea{display:block!important;font-size:16px;line-height:1.
 /* Print and "Save as PDF": the page alone, on white, one page per wiki page in ?print. */
 .printpage{break-before:page}
 .printpage:first-child{break-before:auto}
-/* Kanban boards (a page asks for one with <!-- kanban --> or "kanban: true"): columns side by side, scrolling sideways when they do not fit. */
-.doc .kanban{display:flex;align-items:flex-start;gap:1rem;overflow-x:auto;margin:1.25rem 0;padding-bottom:.5rem}
+/* Kanban boards (a page asks for one with <!-- kanban --> or "kanban: true"): columns side by side. A board wider than the text column spills out to the right (the page scrolls sideways only when the window is too narrow too). */
+.doc .kanban{display:flex;align-items:flex-start;gap:1rem;overflow:visible;margin:1.25rem 0;padding-bottom:.5rem}
 .doc .kanban-column{flex:1 0 14rem;max-width:22rem;padding:.75rem;border-radius:8px;background:var(--bg2);border:1px solid var(--line)}
 .doc .kanban-column>h2{margin:0 0 .75rem;padding:0;border:0;font-size:1rem}
 .doc .kanban-cards{margin:0;padding:0;list-style:none}

@@ -3,6 +3,10 @@ title: Project board
 kanban: true
 ---
 
+# {{page.title}}
+
+The whole page is a board: each `##` heading is a column and each task is a card. See also the [roadmap](roadmap).
+
 ## Backlog
 - [ ] Dark mode for the landing page
 - [ ] Import from Notion
